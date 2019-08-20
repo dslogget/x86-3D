@@ -1,3 +1,10 @@
     extern _MultiplyMatMat@12
     extern _MultiplyMatVec@12
     extern _ConstructViewMatrix@32
+    extern _Dot3DVecVec@8
+    extern _Cross3DVecVec@12
+    extern _Add3DVecVec@12
+    extern _MultiplyVecFloat@16
+    extern _ConvertToPixSpace@12
+    extern _Matrix_Transpose@4
+    extern _ConstructRotationMatrixY@8

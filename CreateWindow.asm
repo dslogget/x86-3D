@@ -7,6 +7,7 @@
     %include "WIN32N.INC"
     %include "WIN32FUNCS.INC"
     %include "Drawing.inc"
+    %include "Matrix.inc"
 
 
 
@@ -18,20 +19,45 @@ className db "MyWindowClass",0
 settingsfile db "Settings.txt",0
 tickspersec dd 1000
 
+testTriangle    dd -0.5, -1.0, 0.0, 1.0
+                dd 0.5, -1.0, 0.0, 1.0
+                dd 0.0, 0.0, 0.5, 1.0
+
+fov dd 90.0
+ffar dd 100.0
+fnear dd 0.5
+
+
+
+
+
     section .data
 
-RedrawSent dd 0
+poleBottom dd 0.0, 0.0, 0.0, 1.0
+poleTop dd 0.0, -1.0, 0.0, 1.0
+
+angle: dd 0
+angularSpeed: dd 0.05
+
 
 hWind   dd 0
 
 windowHeight:    dd 500
 windowWidth:     dd 500
 
-ScreenStruct:
-hdc             dd 0
 clientHeight    dd 500
 clientWidth     dd 500
+
+
+
+ScreenStruct:
+pBmpBuf         dd 0
+BmpBufPWidth    dd 0
+bmpPB           dd 3
+bmpBWidth       dd 0
 pDepthBuffer    dd 0
+BmpBSize        dd 0
+BmpBufPHeight   dd 0
 
 lastRedraw      dd 0
 deltaTime       dd 0
@@ -54,12 +80,44 @@ nMeshes     dd 0
     section .bss
 titlebuf resb 50
 
+bmpinfo:
+bmpinfoheader:
+bih_biSize:             resd 1
+bih_biWidth:            resd 1
+bih_biHeight:           resd 1
+bih_biPlanes:           resw 1
+bih_biBitCount:         resw 1
+bih_biCompression:      resd 1
+bih_biSizeImage:        resd 1
+bih_biXPelsPerMeter:    resd 1
+bih_biYPelsPerMeter:    resd 1
+bih_biClrUsed:          resd 1
+bih_biClrImportant:     resd 1
+bmpinfoheader_size equ $-bmpinfoheader
+    resd 2
+bmpinfo_size equ $-bmpinfo
+
+
+ViewMatrix: resd 4*4
+
+TranslationMatrix: resd 4*4
+
+TransformMatrix: resd 4*4
+
+RotationMatrix: resd 4*4
+
+
+
+
+
+
+
+
     section .text
 
 _wndProc@16:
     push ebp
     mov ebp, esp
-    and esp, -4
 
     push ebx
     push esi
@@ -87,10 +145,16 @@ case1:
     push dword [ebp + 8]
     call _GetClientRect@8
     mov eax, dword [esp + 8]
+    add eax, dword 1
     mov dword [clientWidth], eax
+    mov dword [BmpBufPWidth], eax
     mov eax, dword [esp + 12]
+    add eax, dword 1
     mov dword [clientHeight], eax
+    mov dword [BmpBufPHeight], eax
     add esp, 4*4
+
+
 
 
     call _GetProcessHeap@0
@@ -110,6 +174,75 @@ case1:
     call _HeapAlloc@12
     mov dword [pDepthBuffer], eax
 
+    ;Setup bmpbuffer
+
+        ;header
+        push dword bmpinfo_size
+        push dword 0x00
+        push dword bmpinfo
+        call _memset@12
+
+        mov dword [bih_biSize], bmpinfoheader_size
+        mov eax, dword [clientWidth]
+        mov dword [bih_biWidth], eax
+        mov eax, dword [clientHeight]
+        neg eax
+        mov dword [bih_biHeight], eax
+        mov word [bih_biPlanes], 1
+        mov word [bih_biBitCount], 24
+        mov dword [bih_biCompression], BI_RGB
+
+        mov eax, dword 0
+        mov ax, word [bih_biBitCount]
+        mov ecx, dword 8
+        div ecx
+        mov dword [bmpPB], eax
+
+        mov ecx, dword [bih_biWidth]
+        mul ecx
+        add eax, dword 3
+        and eax, dword -3
+        mov dword [bmpBWidth], eax
+
+        ;Get bytes to alloc
+        mov ecx, dword [clientHeight]
+        mul ecx
+
+        mov edx, eax
+        mov dword [BmpBSize], eax
+        call _GetProcessHeap@0
+
+        push edx
+        push 0
+        push eax
+        call _HeapAlloc@12
+        mov dword [pBmpBuf], eax
+
+
+    push dword ViewMatrix
+    push dword [ffar]
+    push dword [fnear]
+    push dword [clientHeight]
+    push dword [clientWidth]
+    push dword [fov]
+    call _ConstructViewMatrix@32 ;HoriFOV, width, height, near, far, pMatToRet
+    
+    push dword 4*4*4
+    push dword 0x00
+    push dword TranslationMatrix
+    call _memset@12
+
+    fld1
+    fst dword [TranslationMatrix + 16*0 + 4*0]
+    fst dword [TranslationMatrix + 16*1 + 4*1]
+    fst dword [TranslationMatrix + 16*2 + 4*2]
+    fst dword [TranslationMatrix + 16*3 + 4*3]
+    fst dword [TranslationMatrix + 16*1 + 4*3]
+    fadd st0
+    fadd st0
+    fstp dword [TranslationMatrix + 16*2 + 4*3]
+
+
     push dword [clientHeight]
     push dword [clientWidth]
     push nMeshes
@@ -127,6 +260,8 @@ case3:
     call _PostQuitMessage@4
     mov eax, dword 0
     jmp break
+
+
 case4:
     sub esp, 148
     mov esi, esp
@@ -135,6 +270,7 @@ case4:
     lea ebx, [ebp + 8]
     push dword [ebx]
     call _BeginPaint@8
+    push dword 0 ;hBMP
 
 
     cmp eax, 0
@@ -149,20 +285,31 @@ skip:
     push dword [pDepthBuffer]
     call _memset@12
 
+    push dword [BmpBSize]
+    push dword 0x00
+    push dword [pBmpBuf]
+    call _memset@12
+
     push dword [esi]
     call _CreateCompatibleDC@4
     mov edi, eax
-    mov dword [hdc], edi
 
 
     push dword [clientHeight]
     push dword [clientWidth]
     push dword [esi]
     call _CreateCompatibleBitmap@12
+    push eax
+    ;mov dword [esp], eax 
 
     push eax
     push edi
     call _SelectObject@8
+
+
+
+
+
 
     ;Draw Gradient Triangle
 
@@ -180,49 +327,298 @@ skip:
     call _printEAX
     call _debug
 skip2:
+            ;Apply Transform to Triangle and render it
+    sub esp, dword 4*4*3 ;Allocate space for the resultant Triangle
+
+    push dword RotationMatrix
+    push dword [angle]
+    call _ConstructRotationMatrixY@8
+
+    push RotationMatrix
+    push RotationMatrix
+    push TranslationMatrix
+    call _MultiplyMatMat@12
+
+    push dword TransformMatrix
+    push dword RotationMatrix
+    push dword ViewMatrix
+    call _MultiplyMatMat@12
+    ;Form the transform matrix
+    
+            lea eax, [esp + 4*4*0]
+            push dword eax
+            push dword testTriangle + 4*4*0
+            push dword TransformMatrix
+            call _MultiplyMatVec@12
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*0]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*0 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*0]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+            lea eax, [esp + 4*4*0]
+            push eax
+            push eax
+            push ScreenStruct
+            call _ConvertToPixSpace@12
 
 
-    mov ecx, dword 200
-drawline:
-    push ecx
+            lea eax, [esp + 4*4*1]
+            push dword eax
+            push dword testTriangle + 4*4*1
+            push dword TransformMatrix
+            call _MultiplyMatVec@12
 
-    push dword 0x00FFFF00
-    push dword [depth2]
-    push dword 150
-    push dword 300
-    add dword [esp], ecx
-    push dword [depth3]
-    push dword 75
-    push dword 95
-    add dword [esp], ecx
+            mov ecx, esp
+            lea eax, [esp + 4*4*1]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*1 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*1]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+            lea eax, [esp + 4*4*1]
+            push eax
+            push eax
+            push ScreenStruct
+            call _ConvertToPixSpace@12
+
+
+            lea eax, [esp + 4*4*2]
+            push dword eax
+            push dword testTriangle + 4*4*2
+            push dword TransformMatrix
+            call _MultiplyMatVec@12
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*2]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*2 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*2]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+            lea eax, [esp + 4*4*2]
+            push eax
+            push eax
+            push ScreenStruct
+            call _ConvertToPixSpace@12
+
+    mov ecx, esp
+
+    push dword 0x00FFFFFF
+    lea eax, [ecx + 4*4*2]
+    push dword eax
+    lea eax, [ecx + 4*4*1]
+    push dword eax
+    lea eax, [ecx + 4*4*0]
+    push dword eax
     push ScreenStruct
-    call _Bresenham@32
-    mov ecx, dword [esp]
+    call _DrawTriangle@20
+    ;draw pole 
 
-    ;add ecx, dword 100
-    ;push dword 0x00FF00FF
-    ;push dword [depth]
-    ;push dword [lineY]
-    ;push dword ecx
-    ;push dword ScreenStruct
-    ;call _SetPixelD@20
+            lea eax, [esp + 4*4*0]
+            push dword eax
+            push dword poleTop 
+            push dword TransformMatrix
+            call _MultiplyMatVec@12
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*0]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*0 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*0]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+            lea eax, [esp + 4*4*0]
+            push eax
+            push eax
+            push ScreenStruct
+            call _ConvertToPixSpace@12
+
+            lea eax, [esp + 4*4*1]
+            push dword eax
+            push dword poleBottom
+            push dword TransformMatrix
+            call _MultiplyMatVec@12
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*1]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*1 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*1]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+            lea eax, [esp + 4*4*1]
+            push eax
+            push eax
+            push ScreenStruct
+            call _ConvertToPixSpace@12
+
+
+            mov ecx, esp
+            push dword 0x00FF00FF
+            push dword [ecx + 4*4*1 + 4*2]
+            push dword [ecx + 4*4*1 + 4*1]
+            push dword [ecx + 4*4*1 + 4*0]
+            push dword 0x00FF00FF
+            push dword [ecx + 4*4*0 + 4*2]
+            push dword [ecx + 4*4*0 + 4*1]
+            push dword [ecx + 4*4*0 + 4*0]
+            push dword ScreenStruct
+            call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
+            
+            mov ecx, esp
+            push dword 0x00FF00FF
+            push dword [ecx + 4*4*1 + 4*2]
+            push dword [ecx + 4*4*1 + 4*1]
+            push dword [ecx + 4*4*1 + 4*0]
+            add dword [esp], 1
+            push dword 0x00FF00FF
+            push dword [ecx + 4*4*0 + 4*2]
+            push dword [ecx + 4*4*0 + 4*1]
+            push dword [ecx + 4*4*0 + 4*0]
+            add dword [esp], 1
+            push dword ScreenStruct
+            call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
+
+            mov ecx, esp
+            push dword 0x00FF00FF
+            push dword [ecx + 4*4*1 + 4*2]
+            push dword [ecx + 4*4*1 + 4*1]
+            push dword [ecx + 4*4*1 + 4*0]
+            sub dword [esp], 1
+            push dword 0x00FF00FF
+            push dword [ecx + 4*4*0 + 4*2]
+            push dword [ecx + 4*4*0 + 4*1]
+            push dword [ecx + 4*4*0 + 4*0]
+            sub dword [esp], 1
+            push dword ScreenStruct
+            call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
 
 
 
 
-    pop ecx
-    loop drawline
+
+
+
+    add esp, 4*4*3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;
+    ;mov eax, dword [depth]
+    ;sub esp, dword 4*3*3
+;
+    ;mov edx, dword [lineY]
+    ;mov dword [esp + 4*0], edx
+    ;mov dword [esp + 4*1], edx
+    ;mov dword [esp + 4*2], eax
+;
+    ;mov dword [esp + 4*3], 100
+    ;mov dword [esp + 4*4], 300
+    ;mov dword [esp + 4*5], eax
+;
+    ;mov dword [esp + 4*6], 200
+    ;mov dword [esp + 4*7], 150
+    ;mov dword [esp + 4*8], eax
+;
+    ;push dword 0x00FFFFFF
+    ;lea eax, [esp + 4*3*2 + 4*1]
+    ;push dword eax
+    ;lea eax, [esp + 4*3*1 + 4*2]
+    ;push dword eax
+    ;lea eax, [esp + 4*3*0 + 4*3]
+    ;push dword eax
+    ;push ScreenStruct
+    ;call _DrawTriangle@20
+    ;add esp, dword 4*3*3
+;
+;
 
 
     ;push dword 0x00FFFF00
-    ;push dword [depth2]
-    ;push dword 150
-    ;push dword 300
     ;push dword [depth3]
-    ;push dword 75
-    ;push dword 95
+    ;push dword 151
+    ;push dword 1279
+    ;push dword 0x00FFFF00
+    ;push dword [depth3]
+    ;push dword 151
+    ;push dword 0
     ;push ScreenStruct
-    ;call _Bresenham@32
+    ;call _Bresenham@36
+
+    ;SETDIBITS
+
+    pop eax
+
+    push dword 0
+    push dword bmpinfo
+    push dword [pBmpBuf]
+    push dword [clientHeight]
+    push dword 0
+    push eax
+    push edi
+    call _SetDIBits@28
+
 
 
 
@@ -242,7 +638,6 @@ drawline:
     ;deleteDC
     push edi
     call _DeleteDC@4
-    mov dword [hdc], 0
 
     ;call _debug
 
@@ -251,11 +646,6 @@ endp:
     push dword [ebx]
     call _EndPaint@8
 
-    call _GetTickCount@0
-    mov ecx, eax
-    sub eax, dword [lastRedraw]
-    mov dword [deltaTime], eax
-    mov dword [lastRedraw], ecx
 
 
     
@@ -385,38 +775,62 @@ lp:
 
 noMsg:
 
-    
+    call _GetTickCount@0
+    sub eax, dword [lastRedraw]
+    cmp eax, dword 16
+    jb lp
     
 
 
     ;call _debug  
 
-    push dword RDW_INVALIDATE | RDW_NOERASE | RDW_NOFRAME| RDW_INTERNALPAINT | RDW_UPDATENOW;RDW_INTERNALPAINT|RDW_ERASENOW|RDW_ALLCHILDREN
+    push dword RDW_INVALIDATE | RDW_NOERASE | RDW_NOFRAME | RDW_INTERNALPAINT | RDW_UPDATENOW;RDW_INTERNALPAINT|RDW_ERASENOW|RDW_ALLCHILDREN
     push dword 0
     push dword 0
     push dword [hWind]
     call _RedrawWindow@16
 
-    ;speed = 1 per tick
+    call _GetTickCount@0
+    mov ecx, eax
+    sub eax, dword [lastRedraw]
+    mov dword [deltaTime], eax
+    mov dword [lastRedraw], ecx
+
+    ;speed = 1/10 per tick
 
     mov eax, dword 1
     mov ecx, dword [deltaTime]
     mul ecx
+    mov ecx, 10
+    div ecx
     add eax, dword [lineY]
     cmp eax, [clientHeight]
     jb rstend
-    mov eax, 10
+    mov eax, dword 10
 rstend:
     mov dword [lineY], eax
+
+    ;update angle
+    fld dword [angle]
+    fld1
+    fimul dword [deltaTime]
+    fmul dword [angularSpeed]
+    faddp
+    fstp dword [angle]
+
+
+
 
     mov eax, dword [tickspersec]
     mov ecx, dword [deltaTime]
     add ecx, 1
     div ecx
-    push dword 0
-    push eax
+
+    push dword [deltaTime]
     push dword titlebuf
     call _uitoa@8
+    add eax, titlebuf
+    mov [eax], dword 0
 
     push titlebuf
     push dword [hWind]

@@ -54,14 +54,14 @@ h_stderr    dd 0
 
 h_file      dd 0
 
-mat1    dd  0.707106781, 0.0, -0.707106781, 0.0
+mat1    dd  1.0, 0.0, 0.0, 0.0
         dd  0.0, 1.0, 0.0, 0.0
-        dd  0.707106781, 0.0, 0.707106781, 0.0
-        dd  0.0, 0.0, 0.0, 1.0
+        dd  0.0, 0.0, 1.0, -1.0
+        dd  0.0, 0.0, 1.0, 0.0
 
 mat2    dd  1.0, 0.0, 0.0, 0.0
-        dd  0.0, 0.707106781, 0.707106781, 0.0
-        dd  0.0, -0.707106781, 0.707106781, 0.0
+        dd  0.0, 1.0, 0.0, 0.0
+        dd  0.0, 0.0, 1.0, 1.0
         dd  0.0, 0.0, 0.0, 1.0
 
 
@@ -190,13 +190,6 @@ _start:
     push mat1
     call _MultiplyMatMat@12
 
-    push dword resMat
-    push dword [ffar]
-    push dword [fnear]
-    push dword 720-30
-    push dword 1280
-    push dword [fov]
-    call _ConstructViewMatrix@32
 
 
 
