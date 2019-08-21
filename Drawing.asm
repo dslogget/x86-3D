@@ -7,6 +7,7 @@
     global _SetPixelD@20
     global _Bresenham@36
     global _DrawTriangle@20
+    global _ProcessTriangle@20  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
 
     section .data
 
@@ -23,6 +24,147 @@
     ;bmpBWidth       0x0C
     ;pDepthBuffer    0x10
     ;BmpBSize        0x14
+_ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
+    push ebp
+    mov ebp, esp
+    push ebx
+    push esi
+    sub esp, dword 4*4*3 ;Allocate space for the resultant Triangle
+
+            mov ebx, dword [ebp + 8 + 4*2]
+            mov esi, dword [ebp + 8 + 4*3]
+
+            mov ecx, dword [esi]
+            add esi, dword 4
+            shl ecx, 4
+            lea eax, [esp + 4*4*0]
+            push dword eax
+            lea eax, [ebx + ecx]
+            push eax
+            push dword [ebp + 8 + 4*1]
+            call _MultiplyMatVec@12
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*0]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*0 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*0]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+
+            mov ecx, dword [esi]
+            add esi, dword 4
+            shl ecx, 4
+            lea eax, [esp + 4*4*1]
+            push dword eax
+            lea eax, [ebx + ecx]
+            push eax
+            push dword [ebp + 8 + 4*1]
+            call _MultiplyMatVec@12
+
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*1]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*1 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*1]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+            mov ecx, dword [esi]
+            add esi, dword 4
+            shl ecx, 4
+            lea eax, [esp + 4*4*2]
+            push dword eax
+            lea eax, [ebx + ecx]
+            push eax
+            push dword [ebp + 8 + 4*1]
+            call _MultiplyMatVec@12
+
+            mov ecx, esp
+            lea eax, [esp + 4*4*2]
+            push dword eax                  ;Vertex
+
+            fld1
+            lea eax, [ecx + 4*4*2 + 4*3]
+            fdiv dword [eax]
+            push dword 0                    ;depth
+            fstp dword [esp]
+
+            lea eax, [ecx + 4*4*2]
+            push dword 4                    ;nMembers
+            push eax                        ;Vertex
+            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
+            ;scale
+
+
+
+            ;GetNormal and cull
+
+
+
+
+
+
+
+            lea eax, [esp + 4*4*0]
+            push eax
+            push eax
+            push dword [ebp + 8 + 4*0]
+            call _ConvertToPixSpace@12
+
+            lea eax, [esp + 4*4*1]
+            push eax
+            push eax
+            push dword [ebp + 8 + 4*0]
+            call _ConvertToPixSpace@12
+
+            lea eax, [esp + 4*4*2]
+            push eax
+            push eax
+            push dword [ebp + 8 + 4*0]
+            call _ConvertToPixSpace@12
+
+    mov ecx, esp
+
+    push dword 0x00FFFFFF
+    lea eax, [ecx + 4*4*2]
+    push dword eax
+    lea eax, [ecx + 4*4*1]
+    push dword eax
+    lea eax, [ecx + 4*4*0]
+    push dword eax
+    push dword [ebp + 8 + 4*0]
+    call _DrawTriangle@20
+
+
+
+    add esp, dword 4*4*3
+    pop esi
+    pop ebx
+    mov esp, ebp
+    pop ebp
+    ret 20
+
+
+
 
 _DrawTriangle@20:     ;pScreen, pVec1, pVec2, pVec3, col
     push ebp

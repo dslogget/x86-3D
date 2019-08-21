@@ -240,16 +240,15 @@ case1:
     fst dword [TranslationMatrix + 16*1 + 4*3]
     fadd st0
     fadd st0
+    fadd st0
     fstp dword [TranslationMatrix + 16*2 + 4*3]
 
 
-    push dword [clientHeight]
-    push dword [clientWidth]
     push nMeshes
     push pMeshes
     push nVertices
     push pVertices
-    call _LoadTriangles@24 ;ppVertices, pnVertices, ppMeshes, pnMeshes, screenwidth, screenheight
+    call _LoadTriangles@16
     jmp break
 case2:
     jmp break
@@ -328,7 +327,7 @@ skip:
     call _debug
 skip2:
             ;Apply Transform to Triangle and render it
-    sub esp, dword 4*4*3 ;Allocate space for the resultant Triangle
+    sub esp, dword 4*4*3 ;Allocate space for the resultant Triangle/Pole
 
     push dword RotationMatrix
     push dword [angle]
@@ -343,106 +342,27 @@ skip2:
     push dword RotationMatrix
     push dword ViewMatrix
     call _MultiplyMatMat@12
-    ;Form the transform matrix
-    
-            lea eax, [esp + 4*4*0]
-            push dword eax
-            push dword testTriangle + 4*4*0
-            push dword TransformMatrix
-            call _MultiplyMatVec@12
 
-            mov ecx, esp
-            lea eax, [esp + 4*4*0]
-            push dword eax                  ;Vertex
+    ;Draw all tris
+    mov ecx, dword [nMeshes]
+draw_Tris:
+    push ecx
+        sub ecx, dword 1
+        mov eax, ecx
+        mov ecx, dword 12
+        mul ecx
 
-            fld1
-            lea eax, [ecx + 4*4*0 + 4*3]
-            fdiv dword [eax]
-            push dword 0                    ;depth
-            fstp dword [esp]
+        push 0x00FF00FF
+        mov ecx, dword [pMeshes]
+        add ecx, eax
+        push dword ecx
+        push dword [pVertices]
+        push TransformMatrix
+        push ScreenStruct
+        call _ProcessTriangle@20  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
+    pop ecx
+    loop draw_Tris
 
-            lea eax, [ecx + 4*4*0]
-            push dword 4                    ;nMembers
-            push eax                        ;Vertex
-            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
-            ;scale
-
-            lea eax, [esp + 4*4*0]
-            push eax
-            push eax
-            push ScreenStruct
-            call _ConvertToPixSpace@12
-
-
-            lea eax, [esp + 4*4*1]
-            push dword eax
-            push dword testTriangle + 4*4*1
-            push dword TransformMatrix
-            call _MultiplyMatVec@12
-
-            mov ecx, esp
-            lea eax, [esp + 4*4*1]
-            push dword eax                  ;Vertex
-
-            fld1
-            lea eax, [ecx + 4*4*1 + 4*3]
-            fdiv dword [eax]
-            push dword 0                    ;depth
-            fstp dword [esp]
-
-            lea eax, [ecx + 4*4*1]
-            push dword 4                    ;nMembers
-            push eax                        ;Vertex
-            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
-            ;scale
-
-            lea eax, [esp + 4*4*1]
-            push eax
-            push eax
-            push ScreenStruct
-            call _ConvertToPixSpace@12
-
-
-            lea eax, [esp + 4*4*2]
-            push dword eax
-            push dword testTriangle + 4*4*2
-            push dword TransformMatrix
-            call _MultiplyMatVec@12
-
-            mov ecx, esp
-            lea eax, [esp + 4*4*2]
-            push dword eax                  ;Vertex
-
-            fld1
-            lea eax, [ecx + 4*4*2 + 4*3]
-            fdiv dword [eax]
-            push dword 0                    ;depth
-            fstp dword [esp]
-
-            lea eax, [ecx + 4*4*2]
-            push dword 4                    ;nMembers
-            push eax                        ;Vertex
-            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
-            ;scale
-
-            lea eax, [esp + 4*4*2]
-            push eax
-            push eax
-            push ScreenStruct
-            call _ConvertToPixSpace@12
-
-    mov ecx, esp
-
-    push dword 0x00FFFFFF
-    lea eax, [ecx + 4*4*2]
-    push dword eax
-    lea eax, [ecx + 4*4*1]
-    push dword eax
-    lea eax, [ecx + 4*4*0]
-    push dword eax
-    push ScreenStruct
-    call _DrawTriangle@20
-    ;draw pole 
 
             lea eax, [esp + 4*4*0]
             push dword eax
@@ -608,7 +528,7 @@ skip2:
 
     ;SETDIBITS
 
-    pop eax
+    mov eax, dword [esp]
 
     push dword 0
     push dword bmpinfo
@@ -618,10 +538,6 @@ skip2:
     push eax
     push edi
     call _SetDIBits@28
-
-
-
-
 
     ;bitblt
     push dword SRCCOPY
@@ -638,6 +554,8 @@ skip2:
     ;deleteDC
     push edi
     call _DeleteDC@4
+
+    call _DeleteObject@4
 
     ;call _debug
 

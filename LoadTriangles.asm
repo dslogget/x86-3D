@@ -1,5 +1,5 @@
     global _ReadNextNumber@8
-    global _LoadTriangles@24 ;ppVertices, pnVertices, ppMeshes, pnMeshes, screenwidth, screenheight
+    global _LoadTriangles@16 ;ppVertices, pnVertices, ppMeshes, pnMeshes
     global _ReadFloat@4
     global _CloseFileHandle@0
     
@@ -213,179 +213,119 @@ ReadNextNumber_exit:
 
 
 
-_LoadTriangles@24: ;ppVertices, pnVertices, ppMeshes, pnMeshes, screenwidth, screenheight
+_LoadTriangles@16: ;ppVertices, pnVertices, ppIndices, pnIndices
     push ebp
     mov ebp, esp
-    push edi
-    sub esp, 4
+    sub esp, dword 4 ; Heap
+    push ebx
+
 
     call _GetProcessHeap@0
-    mov dword [ebp -4*1 - 4], dword eax
+    mov dword [ebp - 4 - 4*0], eax
 
+    ;Vertices 
     push dword 0
     push esp
     push filename
-    call _ReadNextNumber@8
-    add esp, 4
+    call _ReadNextNumber@8 ;filepath, neg
+    add esp, dword 4
 
-    mov ecx, dword [ebp + 12]
-    mov [ecx], dword eax
+    mov ecx, dword [ebp + 8 + 4*1]
+    mov dword [ecx], eax
 
-    mov edi, 16
-    mul edi
-    push eax
+    shl eax, 4
+
+    push dword eax
     push dword 0
-    push dword [ebp -4*1 - 4]
+    push dword [ebp - 4 - 4*0]
     call _HeapAlloc@12
+    mov ecx, dword [ebp + 8 + 4*0]
+    mov dword [ecx], eax
 
-
-    mov ecx, dword [ebp + 8]
-    mov [ecx], dword eax
-
-
-
+    ;Triangles
     push dword 0
     push esp
     push filename
-    call _ReadNextNumber@8
-    add esp, 4
+    call _ReadNextNumber@8 ;filepath, neg
+    add esp, dword 4
+    mov ecx, dword [ebp + 8 + 4*3]
+    mov dword [ecx], eax
 
-    mov ecx, dword [ebp + 20]
-    mov [ecx], dword eax
+    shl eax, 4
 
-    mov edi, 12
-    mul edi
-    push eax
+    push dword eax
     push dword 0
-    push dword [ebp -4*1 - 4]
+    push dword [ebp - 4 - 4*0]
     call _HeapAlloc@12
+    mov ecx, dword [ebp + 8 + 4*2]
+    mov dword [ecx], eax
 
-    mov ecx, dword [ebp + 16]
-    mov [ecx], dword eax
+    mov ebx, dword [ebp + 8 + 4*1]
+    mov ecx, dword [ebx] ; load num vertices
 
-    ; Start populating vertices
-    mov edi, dword [ebp + 12]
-    mov ecx, dword [edi]
-    mov eax, dword [ebp + 8]
-    mov edi, dword [eax]
 
-    sub dword [ebp + 8 + 5*4], 30
-    shr dword [ebp + 8 + 5*4], 1
-    shr dword [ebp + 8 + 4*4], 1
-    
-    LoadTriangles_loop1:
+    mov eax, dword [ebp + 8 + 4*0] 
+    mov ebx, dword [eax] ; load ptr to vert arr
+LoadTriangles_lp1:
     push ecx
-    ;x
         push filename
-        call _ReadFloat@4
-        push dword [ebp + 8 + 4*4]
-        fimul dword [esp]
-        fiadd dword [esp]
-        fistp dword [edi]
-
-        add edi, 4
-        add esp, 4
-
-    ;y
+        call _ReadFloat@4 ;x
+        fstp dword [ebx]
+        add ebx, dword 4
         push filename
-        call _ReadFloat@4
-        fchs
-        push dword [ebp + 8 + 5*4]
-        fimul dword [esp]
-        fiadd dword [esp]
-        fistp dword [edi]
-        ;sub dword [edi], 25
-
-        add edi, 4
-        add esp, 4
-
-    ;R
+        call _ReadFloat@4 ;y
+        fstp dword [ebx]
+        add ebx, dword 4
         push filename
-        call _ReadFloat@4
-        fimul dword [max_col_intensity]
-        push 0
-        fistp dword [esp]
-        pop eax
-        mov word [edi], ax
-
-        add edi, 2
-
-    ;G
-        push filename
-        call _ReadFloat@4
-        fimul dword [max_col_intensity]
-        push 0
-        fistp dword [esp]
-        pop eax
-        mov word [edi], ax
-
-        add edi, 2
-    ;B
-        push filename
-        call _ReadFloat@4
-        fimul dword [max_col_intensity]
-        push 0
-        fistp dword [esp]
-        pop eax
-        mov word [edi], ax
-
-        add edi, 2
-    ;A
-        push filename
-        call _ReadFloat@4
-        fimul dword [max_col_intensity]
-        push 0
-        fistp dword [esp]
-        pop eax
-        mov word [edi], ax
-
-        add edi, 2
+        call _ReadFloat@4 ;z
+        fstp dword [ebx]
+        add ebx, dword 4
+        fld1
+        fstp dword [ebx] ;w
+        add ebx, dword 4
 
     pop ecx
-    sub ecx, 1
-    jnz LoadTriangles_loop1
+    loop LoadTriangles_lp1
 
-    ; Start populating meshes
-    mov edi, dword [ebp + 20]
-    mov ecx, dword [edi]
-    mov eax, dword [ebp + 16]
-    mov edi, dword [eax]
 
-    
-    LoadTriangles_loop2:
+
+    mov ebx, dword [ebp + 8 + 4*3]
+    mov ecx, dword [ebx] ; load num indices
+
+    mov eax, dword [ebp + 8 + 4*2] 
+    mov ebx, dword [eax] ; load ptr to index arr
+
+LoadTriangles_lp2:
     push ecx
-        push dword 0
+        sub esp, dword 4
 
         push esp
         push filename
-        call _ReadNextNumber@8
-        mov dword [edi], eax
-        add edi, 4
+        call _ReadNextNumber@8 ;0
+        mov dword [ebx], eax
+        add ebx, dword 4
 
         push esp
         push filename
-        call _ReadNextNumber@8
-        mov dword [edi], eax
-        add edi, 4
+        call _ReadNextNumber@8 ;1
+        mov dword [ebx], eax
+        add ebx, dword 4
 
         push esp
         push filename
-        call _ReadNextNumber@8
-        mov dword [edi], eax
-        add edi, 4
+        call _ReadNextNumber@8 ;2
+        mov dword [ebx], eax
+        add ebx, dword 4
 
-        add esp, 4
+        add esp, dword 4
     pop ecx
-    loop LoadTriangles_loop2
+    loop LoadTriangles_lp2
 
-    
-
-LoadTriangles_exit:
-    add esp, 4
-    pop edi
+    pop ebx
     mov esp, ebp
     pop ebp
     ret 16
+    
 
 
 _CloseFileHandle@0:

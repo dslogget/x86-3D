@@ -14,6 +14,7 @@
     global _Dot3DVecVec@8
     global _Cross3DVecVec@12
     global _Add3DVecVec@12
+    global _Sub3DVecVec@12
     global _MultiplyVecFloat@16
     global _ConvertToPixSpace@12
     global _Matrix_Transpose@4
@@ -67,7 +68,7 @@ _ConstructRotationMatrixY@8: ;angle (degrees), pMatRet
 
     mov ecx, dword [ebp - 4 - 4*1]
     mov dword [eax + 16*0 + 4*0], ecx
-    mov dword [eax + 16*3 + 4*2], ecx
+    mov dword [eax + 16*2 + 4*2], ecx
 
     fld1
     lea ecx, [eax + 16*3 + 4*3]
@@ -199,6 +200,37 @@ _ConvertToPixSpace@12:; pScreen, pVec, pVecRes
     mov esp, ebp
     pop ebp
     ret 12
+
+_Sub3DVecVec@12:; pVec1, pVec2, pVecRes
+    push ebp
+    mov ebp, esp
+    sub esp, dword 4*4*1
+
+    mov ecx, dword [ebp + 8 + 4*1]
+
+    mov eax, dword [ecx + 4*0]
+    xor eax, 0x80000000
+    mov dword [esp + 4*0], eax
+
+    mov eax, dword [ecx + 4*1]
+    xor eax, 0x80000000
+    mov dword [esp + 4*1], eax
+
+    mov eax, dword [ecx + 4*2]
+    xor eax, 0x80000000
+    mov dword [esp + 4*2], eax
+
+    mov eax, esp
+    push dword [ebp + 8 + 4*2]
+    push dword eax
+    push dword [ebp + 8 + 4*0]
+    call _Add3DVecVec@12
+
+    mov esp, ebp
+    pop ebp
+    ret 12
+
+
 
 _Add3DVecVec@12:; pVec1, pVec2, pVecRes
     push ebp

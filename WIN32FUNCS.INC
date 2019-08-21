@@ -42,3 +42,4 @@
     extern _PeekMessageA@20
     extern _SetWindowTextA@8
     extern _SetDIBits@28
+    extern _DeleteObject@4
