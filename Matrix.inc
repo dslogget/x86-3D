@@ -4,6 +4,7 @@
     extern _Dot3DVecVec@8
     extern _Cross3DVecVec@12
     extern _Add3DVecVec@12
+    extern _Sub3DVecVec@12
     extern _MultiplyVecFloat@16
     extern _ConvertToPixSpace@12
     extern _Matrix_Transpose@4

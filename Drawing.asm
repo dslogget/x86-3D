@@ -117,12 +117,47 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
 
 
             ;GetNormal and cull
+            ;v0 - v1
+            ;cross
+            ;v2 - v1
+            ;extract vRes Z value
+            ;if neg render
 
+            mov ebx, esp ; vertices
+            sub esp, 4*4*3
+            mov esi, esp ; Vecs
+            
+            lea eax, [esi + 4*4*2]
+            push eax
+            lea eax, [ebx + 4*4*1]
+            push dword eax
+            lea eax, [ebx + 4*4*0]
+            push dword eax
+            call _Sub3DVecVec@12
 
+            lea eax, [esi + 4*4*1]
+            push eax
+            lea eax, [ebx + 4*4*1]
+            push dword eax
+            lea eax, [ebx + 4*4*2]
+            push dword eax
+            call _Sub3DVecVec@12
 
+            lea eax, [esi + 4*4*0]
+            push eax
+            lea eax, [esi + 4*4*2]
+            push dword eax
+            lea eax, [esi + 4*4*1]
+            push dword eax
+            call _Cross3DVecVec@12
 
-
-
+ProcessTriangle_if1:
+            test dword [esi + 4*2], 0x80000000
+            jz ProcessTriangle_endif1
+            add esp, dword 4*4*3
+            jmp ProcessTriangle_exit
+ProcessTriangle_endif1:
+            add esp, dword 4*4*3
 
             lea eax, [esp + 4*4*0]
             push eax
@@ -155,7 +190,7 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
     call _DrawTriangle@20
 
 
-
+ProcessTriangle_exit:
     add esp, dword 4*4*3
     pop esi
     pop ebx
