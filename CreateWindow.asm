@@ -27,15 +27,19 @@ testTriangle    dd -0.5, -1.0, 0.0, 1.0
 fov dd 90.0
 ffar dd 200.0
 fnear dd 0.5
+DegPerRad   dd 57.295779513082320876798154
 
 
 
 
 
     section .data
+player:
+PlPos: dd 0.0, 0.0, 0.0
+PlRot: dd 0.0, 0.0, 0.0
+PlMoveSpeed: dd 0.005
+PlRotSpeed: dd 0.1
 
-poleBottom dd 0.0, 0.0, 0.0, 1.0
-poleTop dd 0.0, -1.0, 0.0, 1.0
 
 angle: dd 0
 angularSpeed: dd 0.05
@@ -101,14 +105,17 @@ bmpinfo_size equ $-bmpinfo
 
 
 ViewMatrix: resd 4*4
+PlayerMatrix: resd 4*4
 
+ObjTransformMats:
 TranslationMatrix: resd 4*4
+RotationMatrix: resd 4*4
 
 TransformMatrix: resd 4*4
 
-RotationMatrix: resd 4*4
-
 FileReadBuf: resb 80
+
+
 
 
 
@@ -198,6 +205,7 @@ case1:
         mov eax, dword 0
         mov ax, word [bih_biBitCount]
         mov ecx, dword 8
+        mov edx, dword 0
         div ecx
         mov dword [bmpPB], eax
 
@@ -224,6 +232,7 @@ case1:
 
         mov eax, dword [BmpBSize]
         mov ecx, dword 4
+        mov edx, dword 0
         div ecx
         mov dword [BmpDWSize], eax
 
@@ -336,21 +345,6 @@ skip:
     push edi
     call _SelectObject@8
 
-
-
-
-
-
-    ;Draw Gradient Triangle
-
-   ;push dword GRADIENT_FILL_TRIANGLE
-   ;push dword [nMeshes]
-   ;push dword [pMeshes]
-   ;push dword [nVertices]
-   ;push dword [pVertices]
-   ;push dword edi
-   ;call _GdiGradientFill@24
-
     cmp eax, 0
     jne skip2
     call _GetLastError@0
@@ -360,17 +354,26 @@ skip2:
             ;Apply Transform to Triangle and render it
     sub esp, dword 4*4*3 ;Allocate space for the resultant Triangle/Pole
 
+    push dword PlayerMatrix
+    push dword player
+    call _ConstructPlayerMatrix@8
+
     push dword RotationMatrix
     push dword [angle]
-    call _ConstructRotationMatrixY@8
+    call _ConstructRotationMatrixZ@8
 
-    push RotationMatrix
+    push TransformMatrix
     push RotationMatrix
     push TranslationMatrix
     call _MultiplyMatMat@12
 
+    push TransformMatrix
+    push TransformMatrix
+    push PlayerMatrix
+    call _MultiplyMatMat@12 
+
     push dword TransformMatrix
-    push dword RotationMatrix
+    push dword TransformMatrix
     push dword ViewMatrix
     call _MultiplyMatMat@12
 
@@ -394,166 +397,7 @@ draw_Tris:
     pop ecx
     loop draw_Tris
 
-
-            lea eax, [esp + 4*4*0]
-            push dword eax
-            push dword poleTop 
-            push dword TransformMatrix
-            call _MultiplyMatVec@12
-
-            mov ecx, esp
-            lea eax, [esp + 4*4*0]
-            push dword eax                  ;Vertex
-
-            fld1
-            fdiv dword [ecx + 4*4*0 + 4*3]
-            push dword 0                    ;depth
-            fstp dword [esp]
-
-            lea eax, [ecx + 4*4*0]
-            push dword 4                    ;nMembers
-            push eax                        ;Vertex
-            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
-            ;scale
-
-            lea eax, [esp + 4*4*0]
-            push eax
-            push eax
-            push ScreenStruct
-            call _ConvertToPixSpace@12
-
-            lea eax, [esp + 4*4*1]
-            push dword eax
-            push dword poleBottom
-            push dword TransformMatrix
-            call _MultiplyMatVec@12
-
-            mov ecx, esp
-            lea eax, [esp + 4*4*1]
-            push dword eax                  ;Vertex
-
-            fld1
-            fdiv dword [ecx + 4*4*1 + 4*3]
-            push dword 0                    ;depth
-            fstp dword [esp]
-
-            lea eax, [ecx + 4*4*1]
-            push dword 4                    ;nMembers
-            push eax                        ;Vertex
-            call _MultiplyVecFloat@16; pVec, nMembers, fFloat, pVecRes
-            ;scale
-
-            lea eax, [esp + 4*4*1]
-            push eax
-            push eax
-            push ScreenStruct
-            call _ConvertToPixSpace@12
-
-
-            mov ecx, esp
-            push dword 0x00FF00FF
-            push dword [ecx + 4*4*1 + 4*2]
-            push dword [ecx + 4*4*1 + 4*1]
-            push dword [ecx + 4*4*1 + 4*0]
-            push dword 0x00FF00FF
-            push dword [ecx + 4*4*0 + 4*2]
-            push dword [ecx + 4*4*0 + 4*1]
-            push dword [ecx + 4*4*0 + 4*0]
-            push dword ScreenStruct
-            call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
-            
-            mov ecx, esp
-            push dword 0x00FF00FF
-            push dword [ecx + 4*4*1 + 4*2]
-            push dword [ecx + 4*4*1 + 4*1]
-            push dword [ecx + 4*4*1 + 4*0]
-            add dword [esp], 1
-            push dword 0x00FF00FF
-            push dword [ecx + 4*4*0 + 4*2]
-            push dword [ecx + 4*4*0 + 4*1]
-            push dword [ecx + 4*4*0 + 4*0]
-            add dword [esp], 1
-            push dword ScreenStruct
-            call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
-
-            mov ecx, esp
-            push dword 0x00FF00FF
-            push dword [ecx + 4*4*1 + 4*2]
-            push dword [ecx + 4*4*1 + 4*1]
-            push dword [ecx + 4*4*1 + 4*0]
-            sub dword [esp], 1
-            push dword 0x00FF00FF
-            push dword [ecx + 4*4*0 + 4*2]
-            push dword [ecx + 4*4*0 + 4*1]
-            push dword [ecx + 4*4*0 + 4*0]
-            sub dword [esp], 1
-            push dword ScreenStruct
-            call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
-
-
-
-
-
-
-
     add esp, 4*4*3
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-;
-    ;mov eax, dword [depth]
-    ;sub esp, dword 4*3*3
-;
-    ;mov edx, dword [lineY]
-    ;mov dword [esp + 4*0], edx
-    ;mov dword [esp + 4*1], edx
-    ;mov dword [esp + 4*2], eax
-;
-    ;mov dword [esp + 4*3], 100
-    ;mov dword [esp + 4*4], 300
-    ;mov dword [esp + 4*5], eax
-;
-    ;mov dword [esp + 4*6], 200
-    ;mov dword [esp + 4*7], 150
-    ;mov dword [esp + 4*8], eax
-;
-    ;push dword 0x00FFFFFF
-    ;lea eax, [esp + 4*3*2 + 4*1]
-    ;push dword eax
-    ;lea eax, [esp + 4*3*1 + 4*2]
-    ;push dword eax
-    ;lea eax, [esp + 4*3*0 + 4*3]
-    ;push dword eax
-    ;push ScreenStruct
-    ;call _DrawTriangle@20
-    ;add esp, dword 4*3*3
-;
-;
-
-
-    ;push dword 0x00FFFF00
-    ;push dword [depth3]
-    ;push dword 151
-    ;push dword 1279
-    ;push dword 0x00FFFF00
-    ;push dword [depth3]
-    ;push dword 151
-    ;push dword 0
-    ;push ScreenStruct
-    ;call _Bresenham@36
 
     ;SETDIBITS
 
@@ -749,6 +593,7 @@ noMsg:
     mov ecx, dword [deltaTime]
     mul ecx
     mov ecx, 10
+    mov edx, dword 0
     div ecx
     add eax, dword [lineY]
     cmp eax, [clientHeight]
@@ -765,12 +610,10 @@ rstend:
     faddp
     fstp dword [angle]
 
-
-
-
     mov eax, dword [tickspersec]
     mov ecx, dword [deltaTime]
     add ecx, 1
+    mov edx, dword 0
     div ecx
 
     push dword [deltaTime]
@@ -782,10 +625,172 @@ rstend:
     push titlebuf
     push dword [hWind]
     call _SetWindowTextA@8
-
-
-
     ;INSERT CONTROL LOOP
+
+;KEYS
+    fld dword [PlRot + 4*1]
+    ;convert to rads
+    fdiv dword [DegPerRad]
+    fsincos 
+
+    push dword 'W'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_W
+
+    fld dword [PlPos + 4*2]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st2
+    faddp  
+    fstp dword [PlPos + 4*2]
+
+    fld dword [PlPos + 4*0]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st3
+    faddp  
+    fstp dword [PlPos + 4*0]
+    ;call _debug
+
+No_W:
+
+    push dword 'S'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_S
+
+    fld dword [PlPos + 4*2]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st2
+    fsubp  
+    fstp dword [PlPos + 4*2]
+
+    fld dword [PlPos + 4*0]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st3
+    fsubp  
+    fstp dword [PlPos + 4*0]
+    ;call _debug
+
+No_S:
+
+    push dword 'A'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_A
+
+    fld dword [PlPos + 4*2]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st3
+    faddp  
+    fstp dword [PlPos + 4*2]
+
+    fld dword [PlPos + 4*0]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st2
+    fsubp  
+    fstp dword [PlPos + 4*0]
+    ;call _debug
+
+No_A:
+
+    push dword 'D'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_D
+
+    fld dword [PlPos + 4*2]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st3
+    fsubp  
+    fstp dword [PlPos + 4*2]
+
+    fld dword [PlPos + 4*0]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fmul st0, st2
+    faddp  
+    fstp dword [PlPos + 4*0]
+    ;call _debug
+
+No_D:
+
+    push dword VK_SPACE
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_Space
+
+    fld dword [PlPos + 4*1]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    fsubp
+    fstp dword [PlPos + 4*1]
+    ;call _debug
+
+No_Space:
+
+
+    push dword 'C'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_C
+
+    fld dword [PlPos + 4*1]
+    fld dword [PlMoveSpeed]
+    fimul dword [deltaTime]
+    faddp
+    fstp dword [PlPos + 4*1]
+    ;call _debug
+No_C:
+
+
+    fstp st0
+    fstp st0
+
+
+    push dword 'Q'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_Q
+
+    fld dword [PlRot + 4*1]
+    fld dword [PlRotSpeed]
+    fimul dword [deltaTime]
+    fsubp
+    fstp dword [PlRot + 4*1]
+    ;call _debug
+No_Q:
+
+    push dword 'E'
+    call _GetAsyncKeyState@4
+
+    test eax, dword 0x80000000
+    jz No_E
+
+    fld dword [PlRot + 4*1]
+    fld dword [PlRotSpeed]
+    fimul dword [deltaTime]
+    faddp
+    fstp dword [PlRot + 4*1]
+    ;call _debug
+No_E:
+
+
+
+
 
 
     jmp lp 

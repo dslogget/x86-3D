@@ -18,7 +18,10 @@
     global _MultiplyVecFloat@16
     global _ConvertToPixSpace@12
     global _Matrix_Transpose@4
+    global _ConstructRotationMatrixX@8
     global _ConstructRotationMatrixY@8
+    global _ConstructRotationMatrixZ@8
+    global _ConstructPlayerMatrix@8
    
 
     section .rdata
@@ -33,6 +36,135 @@ DegPerRad   dd 57.295779513082320876798154
 
     section .text
 
+_ConstructPlayerMatrix@8: ; pPlayerStruct, pMatRet
+    push ebp
+    mov ebp, esp
+    sub esp, dword 4*4*4 ;Temp Matrix
+    push ebx
+    push esi
+    push edi
+
+    ;ebx - temp mat
+    lea ebx, [ebp - 4*4*4]
+    ;edi - matRet
+    mov edi, dword [ebp + 8 + 4*1]
+    ;esi - player
+    mov esi, dword [ebp + 8 + 4*0]
+
+    push dword 4*4
+    push dword 0x00000000
+    push dword edi
+    call _memsetDWORD@12
+
+    fld1
+    fst dword [edi + 16*0 + 4*0]
+    fst dword [edi + 16*1 + 4*1]
+    fst dword [edi + 16*2 + 4*2]
+    fstp dword [edi + 16*3 + 4*3]
+
+    ;translate
+    mov eax, dword [esi + 12*0 + 4*0]
+    xor eax, dword 0x80000000
+    mov dword [edi + 16*0 + 4*3], eax
+
+    mov eax, dword [esi + 12*0 + 4*1]
+    xor eax, dword 0x80000000
+    mov  dword [edi + 16*1 + 4*3], eax
+
+    mov eax, dword [esi + 12*0 + 4*2]
+    xor eax, dword 0x80000000
+    mov dword [edi + 16*2 + 4*3], eax
+
+
+
+
+    push ebx
+    mov eax, dword [esi + 12*1 + 4*0]
+    xor eax, dword 0x80000000
+    push eax
+    call _ConstructRotationMatrixX@8
+
+    push edi
+    push edi
+    push ebx
+    call _MultiplyMatMat@12
+
+
+
+    push ebx
+    mov eax, dword [esi + 12*1 + 4*1]
+    xor eax, dword 0x80000000
+    push eax
+    call _ConstructRotationMatrixY@8
+
+    push edi
+    push edi
+    push ebx
+    call _MultiplyMatMat@12
+
+    push ebx
+    mov eax, dword [esi + 12*1 + 4*2]
+    xor eax, dword 0x80000000
+    push eax
+    call _ConstructRotationMatrixZ@8
+
+    push edi
+    push edi
+    push ebx
+    call _MultiplyMatMat@12
+
+
+
+
+    pop edi
+    pop esi
+    pop ebx
+    mov esp, ebp
+    pop ebp
+    ret 8
+
+
+
+
+_ConstructRotationMatrixX@8: ;angle (degrees), pMatRet
+    push ebp
+    mov ebp, esp
+    push dword 0 ;sine
+    push dword 0 ;cosine
+
+    push dword 4*4
+    push dword 0x00000000
+    push dword [ebp + 8 + 4*1]
+    call _memsetDWORD@12
+
+    fld dword [ebp + 8]
+    fdiv dword [DegPerRad]
+    fsincos
+
+    fstp dword [ebp - 4 - 4*1]
+    fstp dword [ebp - 4 - 4*0]
+
+    mov eax, dword [ebp + 8 + 4*1]
+
+    fld1
+    fstp dword [eax + 16*0 + 4*0]
+
+    mov ecx, dword [ebp - 4 - 4*0]
+    mov dword [eax + 16*2 + 4*1], ecx
+    xor ecx, 0x80000000
+    mov dword [eax + 16*1 + 4*2], ecx
+
+    mov ecx, dword [ebp - 4 - 4*1]
+    mov dword [eax + 16*1 + 4*1], ecx
+    mov dword [eax + 16*2 + 4*2], ecx
+
+    fld1
+    fstp dword [eax + 16*3 + 4*3]
+
+    mov esp, ebp
+    pop ebp
+    ret 8
+
 
 _ConstructRotationMatrixY@8: ;angle (degrees), pMatRet
     push ebp
@@ -40,10 +172,10 @@ _ConstructRotationMatrixY@8: ;angle (degrees), pMatRet
     push dword 0 ;sine
     push dword 0 ;cosine
 
-    push dword 4*4*4
+    push dword 4*4
     push dword 0x00
     push dword [ebp + 8 + 4*1]
-    call _memset@12
+    call _memsetDWORD@12
 
     fld dword [ebp + 8]
     fdiv dword [DegPerRad]
@@ -73,7 +205,44 @@ _ConstructRotationMatrixY@8: ;angle (degrees), pMatRet
     pop ebp
     ret 8
 
+_ConstructRotationMatrixZ@8: ;angle (degrees), pMatRet
+    push ebp
+    mov ebp, esp
+    push dword 0 ;sine
+    push dword 0 ;cosine
 
+    push dword 4*4
+    push dword 0x00000000
+    push dword [ebp + 8 + 4*1]
+    call _memsetDWORD@12
+
+    fld dword [ebp + 8]
+    fdiv dword [DegPerRad]
+    fsincos
+
+    fstp dword [ebp - 4 - 4*1]
+    fstp dword [ebp - 4 - 4*0]
+
+    mov eax, dword [ebp + 8 + 4*1]
+
+    fld1
+    fstp dword [eax + 16*2 + 4*2]
+
+    mov ecx, dword [ebp - 4 - 4*0]
+    mov dword [eax + 16*1 + 4*0], ecx
+    xor ecx, 0x80000000
+    mov dword [eax + 16*0 + 4*1], ecx
+
+    mov ecx, dword [ebp - 4 - 4*1]
+    mov dword [eax + 16*0 + 4*0], ecx
+    mov dword [eax + 16*1 + 4*1], ecx
+
+    fld1
+    fstp dword [eax + 16*3 + 4*3]
+
+    mov esp, ebp
+    pop ebp
+    ret 8
 
 
 

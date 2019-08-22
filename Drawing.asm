@@ -97,8 +97,12 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
             call _MultiplyMatVec@12
 
             mov ecx, esp
+            test dword [ecx + 4*4*2 + 4*3], dword 0x80000000
+            jnz ProcessTriangle_exit
+
             lea eax, [esp + 4*4*2]
             push dword eax                  ;Vertex
+
 
             fld1
             fdiv dword [ecx + 4*4*2 + 4*3]

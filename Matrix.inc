@@ -8,4 +8,7 @@
     extern _MultiplyVecFloat@16
     extern _ConvertToPixSpace@12
     extern _Matrix_Transpose@4
+    extern _ConstructRotationMatrixX@8
     extern _ConstructRotationMatrixY@8
+    extern _ConstructRotationMatrixZ@8
+    extern _ConstructPlayerMatrix@8
