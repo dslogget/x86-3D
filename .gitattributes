@@ -2,3 +2,5 @@
 * text=auto
 
 WIN32N.INC linguist-vendored=true
+*.txt linguist-generated=true
+*.inc linguist-language=Assembly
