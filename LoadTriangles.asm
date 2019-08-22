@@ -5,6 +5,7 @@
     
     %include "test.inc"
     %include "StringFuncs.inc"
+    %include "FileLoading.inc"
     %include "WIN32N.INC"
     %include "WIN32FUNCS.INC"
     %define buflen 30
@@ -217,18 +218,27 @@ _LoadTriangles@16: ;ppVertices, pnVertices, ppIndices, pnIndices
     push ebp
     mov ebp, esp
     sub esp, dword 4 ; Heap
+    sub esp, dword 80 ; buffer
     push ebx
+    push esi
 
+    push filename
+    call _OpenFileRead@4
+    mov esi, eax
 
     call _GetProcessHeap@0
     mov dword [ebp - 4 - 4*0], eax
 
     ;Vertices 
-    push dword 0
-    push esp
-    push filename
-    call _ReadNextNumber@8 ;filepath, neg
-    add esp, dword 4
+
+    lea edx, [ebp - 4 - 80]
+    push edx
+    push esi
+    call _ReadNumbers@8
+    lea edx, [ebp - 4 - 80]
+    push edx
+    call _atoui@4
+
 
     mov ecx, dword [ebp + 8 + 4*1]
     mov dword [ecx], eax
@@ -243,11 +253,14 @@ _LoadTriangles@16: ;ppVertices, pnVertices, ppIndices, pnIndices
     mov dword [ecx], eax
 
     ;Triangles
-    push dword 0
-    push esp
-    push filename
-    call _ReadNextNumber@8 ;filepath, neg
-    add esp, dword 4
+    lea edx, [ebp - 4 - 80]
+    push edx
+    push esi
+    call _ReadNumbers@8
+    lea edx, [ebp - 4 - 80]
+    push edx
+    call _atoui@4
+
     mov ecx, dword [ebp + 8 + 4*3]
     mov dword [ecx], eax
 
@@ -268,17 +281,38 @@ _LoadTriangles@16: ;ppVertices, pnVertices, ppIndices, pnIndices
     mov ebx, dword [eax] ; load ptr to vert arr
 LoadTriangles_lp1:
     push ecx
-        push filename
-        call _ReadFloat@4 ;x
+        lea edx, [ebp - 4 - 80]
+        push edx
+        push esi
+        call _ReadNumbers@8
+        lea edx, [ebp - 4 - 80]
+        push edx
+        call _atof@4 ; x
         fstp dword [ebx]
+
         add ebx, dword 4
-        push filename
-        call _ReadFloat@4 ;y
+
+        lea edx, [ebp - 4 - 80]
+        push edx
+        push esi
+        call _ReadNumbers@8
+        lea edx, [ebp - 4 - 80]
+        push edx
+        call _atof@4 ; y
         fstp dword [ebx]
+
         add ebx, dword 4
-        push filename
-        call _ReadFloat@4 ;z
+
+        lea edx, [ebp - 4 - 80]
+        push edx
+        push esi
+        call _ReadNumbers@8
+        lea edx, [ebp - 4 - 80]
+        push edx
+        call _atof@4 ; y
         fstp dword [ebx]
+
+
         add ebx, dword 4
         fld1
         fstp dword [ebx] ;w
@@ -297,30 +331,45 @@ LoadTriangles_lp1:
 
 LoadTriangles_lp2:
     push ecx
-        sub esp, dword 4
 
-        push esp
-        push filename
-        call _ReadNextNumber@8 ;0
+        lea edx, [ebp - 4 - 80]
+        push edx
+        push esi
+        call _ReadNumbers@8;0
+        lea edx, [ebp - 4 - 80]
+        push edx
+        call _atoui@4
+
         mov dword [ebx], eax
         add ebx, dword 4
 
-        push esp
-        push filename
-        call _ReadNextNumber@8 ;1
+        lea edx, [ebp - 4 - 80]
+        push edx
+        push esi
+        call _ReadNumbers@8;1
+        lea edx, [ebp - 4 - 80]
+        push edx
+        call _atoui@4
         mov dword [ebx], eax
         add ebx, dword 4
 
-        push esp
-        push filename
-        call _ReadNextNumber@8 ;2
+        lea edx, [ebp - 4 - 80]
+        push edx
+        push esi
+        call _ReadNumbers@8;2
+        lea edx, [ebp - 4 - 80]
+        push edx
+        call _atoui@4
         mov dword [ebx], eax
         add ebx, dword 4
 
-        add esp, dword 4
     pop ecx
     loop LoadTriangles_lp2
 
+    push dword esi
+    call _CloseHandle@4
+
+    pop esi
     pop ebx
     mov esp, ebp
     pop ebp

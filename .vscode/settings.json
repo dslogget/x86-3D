@@ -9,7 +9,8 @@
         "*.exe": true,
         "*.bat": true
     },
-    "explorer.sortOrder": "type"
+    "explorer.sortOrder": "type",
+    "search.showLineNumbers": true
 
 
 }

@@ -4,4 +4,6 @@
     extern _itoa@8
     extern _ftoa@8
     extern _atoi@8
+    extern _atof@4
     extern _memset@12
+    extern _memsetDWORD@12

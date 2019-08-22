@@ -345,6 +345,18 @@ _start:
     call _OpenFileRead@4
     mov dword [h_file], eax
 
+
+    push dword outputbuf
+    push dword [h_file]
+    call _ReadNumbers@8
+
+    push dword outputbuf
+    call _atof@4
+
+    fstp st0
+
+
+
     push outputbuflen
     push outputbuf
     push dword [h_file]

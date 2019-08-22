@@ -49,8 +49,7 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
             push dword eax                  ;Vertex
 
             fld1
-            lea eax, [ecx + 4*4*0 + 4*3]
-            fdiv dword [eax]
+            fdiv dword [ecx + 4*4*0 + 4*3]
             push dword 0                    ;depth
             fstp dword [esp]
 
@@ -77,8 +76,7 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
             push dword eax                  ;Vertex
 
             fld1
-            lea eax, [ecx + 4*4*1 + 4*3]
-            fdiv dword [eax]
+            fdiv dword [ecx + 4*4*1 + 4*3]
             push dword 0                    ;depth
             fstp dword [esp]
 
@@ -103,8 +101,7 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
             push dword eax                  ;Vertex
 
             fld1
-            lea eax, [ecx + 4*4*2 + 4*3]
-            fdiv dword [eax]
+            fdiv dword [ecx + 4*4*2 + 4*3]
             push dword 0                    ;depth
             fstp dword [esp]
 
@@ -176,6 +173,34 @@ ProcessTriangle_endif1:
             push eax
             push dword [ebp + 8 + 4*0]
             call _ConvertToPixSpace@12
+
+
+
+    ;Check all points are within screen
+
+    mov ecx, dword 3*4*4
+    mov ebx, dword [ebp + 8 + 4*0]
+ProcessTriangle_CheckInBounds:
+    mov edx, dword [esp + ecx - 1*4*4 + 4*0]
+
+    cmp edx , dword 0
+    jb ProcessTriangle_exit
+
+    cmp edx, dword [ebx + 4*1]
+    jae ProcessTriangle_exit
+
+    mov edx, dword [esp + ecx - 1*4*4 + 4*1]
+
+    cmp edx , dword 0
+    jb ProcessTriangle_exit
+
+    cmp edx, dword [ebx + 4*6]
+    jae ProcessTriangle_exit
+
+
+    sub ecx, dword 4*4
+    jnz ProcessTriangle_CheckInBounds
+        
 
     mov ecx, esp
 
@@ -282,8 +307,7 @@ _SetPixelD@20:      ;pScreenStruct, pixX, pixY, fDepth, colref
     add edx, eax
 
     ;Load vals to compare
-    lea ecx, [ebp + 8 + 4*3]
-    fld dword [ecx] ;point depth = ST(0)
+    fld dword [ebp + 8 + 4*3] ;point depth = ST(0)
     cmp dword [edx], dword 0
     je SetPixelD_else1
     fcom dword [edx] ;Stored depth
@@ -409,13 +433,10 @@ _Bresenham@36: ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDe
 
 
                 ;load fDepth2
-                lea eax, [ebp + 8 + 4*7]
-                fld dword [eax]
+                fld dword [ebp + 8 + 4*7]
                 ;sub fDepth1
-                lea eax, [ebp + 8 + 4*3]
-                fsub dword [eax]
-                lea eax, [ebp - 20]
-                fstp dword [eax]
+                fsub dword [ebp + 8 + 4*3]
+                fstp dword [ebp - 20]
 
 
 
@@ -439,16 +460,14 @@ _Bresenham@36: ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDe
                 ;interpolate pixel depth
 
                 ;load x
-                lea eax, [ebp - 8]
-                fild dword [eax]
+                fild dword [ebp - 8]
 
                 ;get dist along x
                 lea eax, [ebp + 8 + 4*1]
                 fisub dword [eax]
 
                 ;div by run
-                lea eax, [ebp - 16]
-                mov dword [eax], ebx
+                mov dword [ebp - 16], ebx
                 fidiv dword [eax]
                 push dword 0
                 fist dword [esp]
@@ -547,13 +566,10 @@ Bresenham_UseYAxis:
 
 
                 ;load fDepth2
-                lea eax, [ebp + 8 + 4*7]
-                fld dword [eax]
+                fld dword [ebp + 8 + 4*7]
                 ;sub fDepth1
-                lea eax, [ebp + 8 + 4*3]
-                fsub dword [eax]
-                lea eax, [ebp - 20]
-                fstp dword [eax]
+                fsub dword [ebp + 8 + 4*3]
+                fstp dword [ebp - 20]
 
 
 
@@ -577,16 +593,14 @@ Bresenham_UseYAxis:
                 ;interpolate pixel depth
 
                 ;load y
-                lea eax, [ebp - 8]
-                fild dword [eax]
+                fild dword [ebp - 8]
 
                 ;get dist along y
                 lea eax, [ebp + 8 + 4*2]
                 fisub dword [eax]
 
                 ;div by rise
-                lea eax, [ebp - 16]
-                mov dword [eax], ebx
+                mov dword [ebp - 16], ebx
                 fidiv dword [eax]
                 push dword 0
                 fist dword [esp]
@@ -594,8 +608,7 @@ Bresenham_UseYAxis:
                 lea eax, [ebp - 20]
                 ;multiply fraction by diff
                 fmul dword [eax]
-                lea eax, [ebp + 8 + 4*3]
-                fadd dword [eax]
+                fadd dword [ebp + 8 + 4*3]
 
                 add esp, 4
 

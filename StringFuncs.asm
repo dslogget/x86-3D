@@ -4,7 +4,9 @@
     global _itoa@8
     global _ftoa@8
     global _atoi@8
+    global _atof@4
     global _memset@12
+    global _memsetDWORD@12
 
     %include "test.inc"
     %include "WIN32FUNCS.INC"
@@ -17,6 +19,84 @@ DEC_LUT dd 1000000000,100000000,10000000,1000000,100000,10000,1000,100,10,1,0
 
 
     section .text
+_atof@4: ;pBuf
+    push ebp
+    mov ebp, esp
+    push dword 10
+    push dword 0
+    push ebx
+    
+    mov ebx, dword [ebp + 8 + 4*0]
+    ;get left half of dp
+    fldz
+
+atof_lp1:
+    cmp byte [ebx], 0
+    je atof_exit
+    cmp byte [ebx], '.'
+    je atof_lpend1
+    cmp byte [ebx], '-'
+    jne atof_skipSetNeg
+    mov [ebp - 4 - 4*1], dword 1
+    add ebx, dword 1
+    jmp atof_lp1
+atof_skipSetNeg:
+    fimul dword [ebp - 4 - 4*0]
+    ;mul by 10
+
+    movzx ecx, byte [ebx]
+    sub cl, byte '0'
+    ;convert ascii to number
+    push ecx
+    fiadd dword [esp]
+    add esp, dword 4
+    ;add to total
+
+    add ebx, dword 1
+    jmp atof_lp1
+atof_lpend1:
+    add ebx, dword 1
+
+    fldz
+atof_lp2:
+    cmp byte [ebx], 0
+    je atof_lpend2
+
+
+    movzx ecx, byte [ebx]
+    sub cl, byte '0'
+    ;convert ascii to number
+    push ecx
+    fild dword [esp]
+    add esp, dword 4
+    ;mov to fpu
+
+    fidiv dword [ebp - 4 - 4*0]
+    ;divide by exp
+    fadd
+
+    mov eax, dword [ebp - 4 - 4*0]
+    mov ecx, dword 10
+    mul ecx
+    mov dword [ebp - 4 - 4*0], eax
+    ;inc exp
+
+    add ebx, dword 1
+    jmp atof_lp2
+atof_lpend2:
+    fadd
+
+atof_exit:
+    cmp dword [ebp - 4 - 4*1], 0
+    je atof_exit_skip_set
+    fchs
+atof_exit_skip_set:
+    pop ebx
+    mov esp, ebp
+    pop ebp
+    ret 4
+
+
 
 _atoi@8: ;param1: arrayptr; param2: neg return num
     push ebp
@@ -118,12 +198,10 @@ ftoa_if1:
 ftoa_endif1:
 
     mov dword [ebp -4*2 - 8], 0
-    lea edi, [ebp + 12]
-    fld dword [edi]
+    fld dword [ebp + 12]
     
 
-    lea edi, [ebp -4*2 - 4]
-    fisttp dword [edi]
+    fisttp dword [ebp -4*2 - 4]
 
     push dword [ebp -4*2 - 4]
     push dword ebx
@@ -143,8 +221,7 @@ ftoa_endif2:
     ;call _printEAX
     ;call _printCRLF
 
-    lea edi, [ebp + 12]
-    fld dword [edi]
+    fld dword [ebp + 12]
     lea edi, [ebp -4*2 - 4]
     fisub dword [edi]
     mov dword [ebp -4*2 - 4], 1000000000
@@ -297,15 +374,31 @@ _memset@12: ;param1: ptr ;param2: byte val ;param3 num of bytes
     mov eax, dword [ebp + 8]
     mov edx, dword [ebp + 12]
     mov ecx, dword [ebp + 16]
-
 memset_while:
-    cmp ecx, 0
-    je memset_wend
     mov byte [eax], dl
-    inc eax
-    dec ecx
-    jmp memset_while
+    add eax, dword 1
+    loop memset_while
 memset_wend:
+    mov eax, dword 0
+
+    mov esp, ebp
+    pop ebp
+    ret 12
+
+
+
+_memsetDWORD@12: ;param1: ptr ;param2: dword val ;param3 num of dwords
+    push ebp
+    mov ebp, esp
+
+    mov eax, dword [ebp + 8]
+    mov edx, dword [ebp + 12]
+    mov ecx, dword [ebp + 16]
+memsetDWORD_while:
+    mov dword [eax], edx
+    add eax, dword 4
+    loop memsetDWORD_while
+memsetDWORD_wend:
     mov eax, dword 0
 
     mov esp, ebp

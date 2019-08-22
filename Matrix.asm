@@ -45,21 +45,17 @@ _ConstructRotationMatrixY@8: ;angle (degrees), pMatRet
     push dword [ebp + 8 + 4*1]
     call _memset@12
 
-    lea eax, [ebp + 8]
-    fld dword [eax]
+    fld dword [ebp + 8]
     fdiv dword [DegPerRad]
     fsincos
 
-    lea eax, [ebp - 4 - 4*1]
-    fstp dword [eax]
-    lea eax, [ebp - 4 - 4*0]
-    fstp dword [eax]
+    fstp dword [ebp - 4 - 4*1]
+    fstp dword [ebp - 4 - 4*0]
 
     mov eax, dword [ebp + 8 + 4*1]
 
     fld1
-    lea ecx, [eax + 16*1 + 4*1]
-    fstp dword [ecx]
+    fstp dword [eax + 16*1 + 4*1]
 
     mov ecx, dword [ebp - 4 - 4*0]
     mov dword [eax + 16*0 + 4*2], ecx
@@ -71,8 +67,7 @@ _ConstructRotationMatrixY@8: ;angle (degrees), pMatRet
     mov dword [eax + 16*2 + 4*2], ecx
 
     fld1
-    lea ecx, [eax + 16*3 + 4*3]
-    fstp dword [ecx]
+    fstp dword [eax + 16*3 + 4*3]
 
     mov esp, ebp
     pop ebp
@@ -294,40 +289,28 @@ _Cross3DVecVec@12: ; pVec1, pVec2; pVecRet
     mov ecx, dword [ebp + 8 + 4*2]
 
     ;s1
-    lea edx, [eax + 4*1]
-    fld dword [edx]
-    lea edx, [ebx + 4*2]
-    fmul dword [edx]
-    lea edx, [eax + 4*2]
-    fld dword [edx]
-    lea edx, [ebx + 4*1]
-    fmul dword [edx]
+    fld dword [eax + 4*1]
+    fmul dword [ebx + 4*2]
+    fld dword [eax + 4*2]
+    fmul dword [ebx + 4*1]
     fsubrp
     fstp dword [ecx]
     add ecx, dword 4
 
     ;s2
-    lea edx, [eax + 4*2]
-    fld dword [edx]
-    lea edx, [ebx + 4*0]
-    fmul dword [edx]
-    lea edx, [eax + 4*0]
-    fld dword [edx]
-    lea edx, [ebx + 4*2]
-    fmul dword [edx]
+    fld dword [eax + 4*2]
+    fmul dword [ebx + 4*0]
+    fld dword [eax + 4*0]
+    fmul dword [ebx + 4*2]
     fsubrp
     fstp dword [ecx]
     add ecx, dword 4
 
     ;s3
-    lea edx, [eax + 4*0]
-    fld dword [edx]
-    lea edx, [ebx + 4*1]
-    fmul dword [edx]
-    lea edx, [eax + 4*1]
-    fld dword [edx]
-    lea edx, [ebx + 4*0]
-    fmul dword [edx]
+    fld dword [eax + 4*0]
+    fmul dword [ebx + 4*1]
+    fld dword [eax + 4*1]
+    fmul dword [ebx + 4*0]
     fsubrp
     fstp dword [ecx]
 
@@ -350,44 +333,33 @@ _ConstructViewMatrix@32: ;HoriFOV, width, height, near, far, pMatToRet
     mov edx, [ebp + 28]
     
     ;convert HoriFOV to Rads and div by 2
-    lea eax, [ebp + 8]
-    fld dword [eax]
+    fld dword [ebp + 8]
     fdiv dword [FOVConvFact]
     ;take tangent
     fptan
     fdivrp
     ;invert
-    lea eax, [edx + 0*16 + 0*4]
-    fstp dword [eax]
+    fstp dword [edx + 0*16 + 0*4]
 
     ;input vertical
-    lea eax, [ebp + 12]
-    fild dword [eax]
-    lea eax, [ebp + 16]
-    fidiv dword [eax]
-    lea eax, [edx + 0*16 + 0*4]
-    fmul dword [eax]
-    lea eax, [edx + 1*16 + 1*4]
-    fstp dword [eax]
+    fild dword [ebp + 12]
+    fidiv dword [ebp + 16]
+    fmul dword [edx + 0*16 + 0*4]
+    fstp dword [edx + 1*16 + 1*4]
 
-    lea eax, [ebp + 20]
-    fld dword [eax]
+    fld dword [ebp + 20]
     lea eax, [ebp + 24]
     fsubr dword [eax]
     
     fdivr dword [eax]
 
-    lea eax, [edx + 2*16 + 2*4]
-    fst dword [eax]
+    fst dword [edx + 2*16 + 2*4]
     fchs
-    lea eax, [ebp + 20]
-    fmul dword [eax]
-    lea eax, [edx + 2*16 + 3*4]
-    fstp dword [eax]
+    fmul dword [ebp + 20]
+    fstp dword [edx + 2*16 + 3*4]
 
     fld1
-    lea eax, [edx + 3*16 + 2*4]
-    fstp dword [eax]
+    fstp dword [edx + 3*16 + 2*4]
 
     mov esp, ebp
     pop ebp

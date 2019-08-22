@@ -8,6 +8,7 @@
     %include "WIN32FUNCS.INC"
     %include "Drawing.inc"
     %include "Matrix.inc"
+    %include "FileLoading.inc"
 
 
 
@@ -24,7 +25,7 @@ testTriangle    dd -0.5, -1.0, 0.0, 1.0
                 dd 0.0, 0.0, 0.5, 1.0
 
 fov dd 90.0
-ffar dd 100.0
+ffar dd 200.0
 fnear dd 0.5
 
 
@@ -58,6 +59,7 @@ bmpBWidth       dd 0
 pDepthBuffer    dd 0
 BmpBSize        dd 0
 BmpBufPHeight   dd 0
+BmpDWSize       dd 0
 
 lastRedraw      dd 0
 deltaTime       dd 0
@@ -106,6 +108,7 @@ TransformMatrix: resd 4*4
 
 RotationMatrix: resd 4*4
 
+FileReadBuf: resb 80
 
 
 
@@ -160,13 +163,13 @@ case1:
     call _GetProcessHeap@0
     mov ecx, eax
 
-    mov eax, 4
+    mov eax, dword [clientWidth]
     mov ebx, dword [clientHeight]
     mul ebx
-    mov ebx, dword [clientWidth]
+    mov dword [DepthBufferSize], eax
+    mov ebx, dword 4
     mul ebx
 
-    mov dword [DepthBufferSize], eax
 
     push eax
     push 0
@@ -210,6 +213,7 @@ case1:
 
         mov edx, eax
         mov dword [BmpBSize], eax
+
         call _GetProcessHeap@0
 
         push edx
@@ -217,6 +221,11 @@ case1:
         push eax
         call _HeapAlloc@12
         mov dword [pBmpBuf], eax
+
+        mov eax, dword [BmpBSize]
+        mov ecx, dword 4
+        div ecx
+        mov dword [BmpDWSize], eax
 
 
     push dword ViewMatrix
@@ -227,10 +236,26 @@ case1:
     push dword [fov]
     call _ConstructViewMatrix@32 ;HoriFOV, width, height, near, far, pMatToRet
     
-    push dword 4*4*4
-    push dword 0x00
+    push dword 4*4
+    push dword 0x00000000
     push dword TranslationMatrix
-    call _memset@12
+    call _memsetDWORD@12
+
+    push settingsfile
+    call _OpenFileRead@4
+    push eax
+
+    push dword 80
+    push FileReadBuf
+    push dword eax
+    call _ReadToNextLine@12
+
+    mov eax, dword [esp]
+
+    push dword 80
+    push FileReadBuf
+    push dword eax
+    call _ReadToNextLine@12
 
     fld1
     fst dword [TranslationMatrix + 16*0 + 4*0]
@@ -238,10 +263,16 @@ case1:
     fst dword [TranslationMatrix + 16*2 + 4*2]
     fst dword [TranslationMatrix + 16*3 + 4*3]
     fst dword [TranslationMatrix + 16*1 + 4*3]
-    fadd st0
-    fadd st0
-    fadd st0
+    
+    mov eax, dword [esp]
+    push FileReadBuf
+    push eax
+    call _ReadNumbers@8
+    push FileReadBuf
+    call _atof@4 ; x
     fstp dword [TranslationMatrix + 16*2 + 4*3]
+
+    call _CloseHandle@4
 
 
     push nMeshes
@@ -282,12 +313,12 @@ skip:
     push dword [DepthBufferSize]
     push dword 0x00
     push dword [pDepthBuffer]
-    call _memset@12
+    call _memsetDWORD@12
 
-    push dword [BmpBSize]
+    push dword [BmpDWSize]
     push dword 0x00
     push dword [pBmpBuf]
-    call _memset@12
+    call _memsetDWORD@12
 
     push dword [esi]
     call _CreateCompatibleDC@4
@@ -375,8 +406,7 @@ draw_Tris:
             push dword eax                  ;Vertex
 
             fld1
-            lea eax, [ecx + 4*4*0 + 4*3]
-            fdiv dword [eax]
+            fdiv dword [ecx + 4*4*0 + 4*3]
             push dword 0                    ;depth
             fstp dword [esp]
 
@@ -403,8 +433,7 @@ draw_Tris:
             push dword eax                  ;Vertex
 
             fld1
-            lea eax, [ecx + 4*4*1 + 4*3]
-            fdiv dword [eax]
+            fdiv dword [ecx + 4*4*1 + 4*3]
             push dword 0                    ;depth
             fstp dword [esp]
 
@@ -693,10 +722,10 @@ lp:
 
 noMsg:
 
-    call _GetTickCount@0
-    sub eax, dword [lastRedraw]
-    cmp eax, dword 16
-    jb lp
+    ;call _GetTickCount@0
+    ;sub eax, dword [lastRedraw]
+    ;cmp eax, dword 16
+    ;jb lp
     
 
 
