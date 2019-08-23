@@ -45,3 +45,4 @@
     extern _DeleteObject@4
 
     extern _GetAsyncKeyState@4
+    extern _QueryPerformanceCounter@4

@@ -38,7 +38,7 @@ atof_lp1:
     cmp byte [ebx], '-'
     jne atof_skipSetNeg
     mov [ebp - 4 - 4*1], dword 1
-    add ebx, dword 1
+    inc ebx
     jmp atof_lp1
 atof_skipSetNeg:
     fimul dword [ebp - 4 - 4*0]
@@ -52,10 +52,10 @@ atof_skipSetNeg:
     add esp, dword 4
     ;add to total
 
-    add ebx, dword 1
+    inc ebx
     jmp atof_lp1
 atof_lpend1:
-    add ebx, dword 1
+    inc ebx
 
     fldz
 atof_lp2:
@@ -81,7 +81,7 @@ atof_lp2:
     mov dword [ebp - 4 - 4*0], eax
     ;inc exp
 
-    add ebx, dword 1
+    inc ebx
     jmp atof_lp2
 atof_lpend2:
     fadd
@@ -117,7 +117,7 @@ atoi_lp:
     cmp [ecx], byte 0
     je atoi_lp_end
 
-    add ecx, dword 1
+    inc ecx
 
     jmp atoi_lp
 atoi_lp_setneg:
@@ -139,8 +139,8 @@ _atoui@4: ;param1: arrayptr; return num
     push ebx
     push esi
 
-    mov ebx, dword 0
-    mov eax, dword 0
+    xor ebx, ebx
+    xor eax, eax
     mov ecx, dword [ebp + 8]
     mov esi, dword 10
 
@@ -191,7 +191,7 @@ ftoa_if1:
     jz ftoa_endif1
 
     mov byte [ebx], '-'
-    add ebx, dword 1
+    inc ebx
 
     and dword [ebp + 12], ~(1<<31)
 
@@ -270,7 +270,7 @@ itoa_if1:
     jge itoa_else1
     neg edi
     mov byte [ebx], '-'
-    add ebx, dword 1
+    inc ebx
     mov [ebp -4*2 - 4], dword 1
     jmp itoa_endif1
 itoa_else1:
@@ -301,7 +301,7 @@ _uitoa@8: ;param1: buf ;param2:int ;return length
 
     mov ebx, [ebp + 8]  ;buf ptr
     mov ecx, [ebp + 12] ;int
-    mov eax, dword 0
+    xor eax, eax
     mov edi, dword DEC_LUT
 
 uitoa_while1:
@@ -310,7 +310,7 @@ uitoa_while1:
     je uitoa_wend1
     
 
-    mov edx, dword 0
+    xor edx, edx
 
 uitoa_while2:
         cmp ecx, esi
@@ -348,7 +348,7 @@ _strlen@4: ;param1: byte ptr
     mov ebp, esp
     push ebx
     
-    mov eax, dword 0 ;toRet = 0
+    xor eax, eax ;toRet = 0
     mov ebx, [ebp + 8] ;retrieve param
 
 strlen_while:
@@ -376,10 +376,11 @@ _memset@12: ;param1: ptr ;param2: byte val ;param3 num of bytes
     mov ecx, dword [ebp + 16]
 memset_while:
     mov byte [eax], dl
-    add eax, dword 1
-    loop memset_while
+    inc eax
+    sub ecx, dword 1
+    jnz memset_while
 memset_wend:
-    mov eax, dword 0
+    xor eax, eax
 
     mov esp, ebp
     pop ebp
@@ -397,9 +398,10 @@ _memsetDWORD@12: ;param1: ptr ;param2: dword val ;param3 num of dwords
 memsetDWORD_while:
     mov dword [eax], edx
     add eax, dword 4
-    loop memsetDWORD_while
+    sub ecx, dword 1
+    jnz memsetDWORD_while
 memsetDWORD_wend:
-    mov eax, dword 0
+    xor eax, eax
 
     mov esp, ebp
     pop ebp

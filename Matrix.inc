@@ -12,3 +12,4 @@
     extern _ConstructRotationMatrixY@8
     extern _ConstructRotationMatrixZ@8
     extern _ConstructPlayerMatrix@8
+    extern _NormaliseVec3D@4

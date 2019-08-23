@@ -65,6 +65,7 @@ BmpBSize        dd 0
 BmpBufPHeight   dd 0
 BmpDWSize       dd 0
 
+currrentTime    dq 0
 lastRedraw      dd 0
 deltaTime       dd 0
 
@@ -133,7 +134,7 @@ _wndProc@16:
     push esi
     push edi
 
-    mov eax, dword 0
+    xor eax, eax
 
 
     mov ebx, dword [ebp + 12]
@@ -155,11 +156,11 @@ case1:
     push dword [ebp + 8]
     call _GetClientRect@8
     mov eax, dword [esp + 8]
-    add eax, dword 1
+    inc eax
     mov dword [clientWidth], eax
     mov dword [BmpBufPWidth], eax
     mov eax, dword [esp + 12]
-    add eax, dword 1
+    inc eax
     mov dword [clientHeight], eax
     mov dword [BmpBufPHeight], eax
     add esp, 4*4
@@ -202,10 +203,10 @@ case1:
         mov word [bih_biBitCount], 24
         mov dword [bih_biCompression], BI_RGB
 
-        mov eax, dword 0
+        xor eax, eax
         mov ax, word [bih_biBitCount]
         mov ecx, dword 8
-        mov edx, dword 0
+        xor edx, edx
         div ecx
         mov dword [bmpPB], eax
 
@@ -232,7 +233,7 @@ case1:
 
         mov eax, dword [BmpBSize]
         mov ecx, dword 4
-        mov edx, dword 0
+        xor edx, edx
         div ecx
         mov dword [BmpDWSize], eax
 
@@ -271,7 +272,7 @@ case1:
     fst dword [TranslationMatrix + 16*1 + 4*1]
     fst dword [TranslationMatrix + 16*2 + 4*2]
     fst dword [TranslationMatrix + 16*3 + 4*3]
-    fst dword [TranslationMatrix + 16*1 + 4*3]
+    fstp dword [TranslationMatrix + 16*1 + 4*3]
     
     mov eax, dword [esp]
     push FileReadBuf
@@ -297,7 +298,7 @@ case3:
 
     push dword 0
     call _PostQuitMessage@4
-    mov eax, dword 0
+    xor eax, eax
     jmp break
 
 
@@ -360,7 +361,7 @@ skip2:
 
     push dword RotationMatrix
     push dword [angle]
-    call _ConstructRotationMatrixZ@8
+    call _ConstructRotationMatrixY@8
 
     push TransformMatrix
     push RotationMatrix
@@ -386,7 +387,7 @@ draw_Tris:
         mov ecx, dword 12
         mul ecx
 
-        push 0x00FF00FF
+        push 0x00FFFFFF
         mov ecx, dword [pMeshes]
         add ecx, eax
         push dword ecx
@@ -395,7 +396,8 @@ draw_Tris:
         push ScreenStruct
         call _ProcessTriangle@20  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
     pop ecx
-    loop draw_Tris
+    sub ecx, dword 1
+    jnz draw_Tris
 
     add esp, 4*4*3
 
@@ -456,7 +458,7 @@ dft:
     call _DefWindowProcA@16
     jmp pexit
 break:
-    mov eax, dword 0
+    xor eax, eax
 pexit:
     pop edi
     pop esi
@@ -581,11 +583,16 @@ noMsg:
     push dword [hWind]
     call _RedrawWindow@16
 
-    call _GetTickCount@0
-    mov ecx, eax
+    push dword currrentTime
+    call _QueryPerformanceCounter@4
+    mov ecx, dword [currrentTime]
+    mov eax, ecx
     sub eax, dword [lastRedraw]
-    mov dword [deltaTime], eax
     mov dword [lastRedraw], ecx
+    xor edx, edx
+    mov ecx, dword 1000
+    div ecx
+    mov dword [deltaTime], eax
 
     ;speed = 1/10 per tick
 
@@ -593,7 +600,7 @@ noMsg:
     mov ecx, dword [deltaTime]
     mul ecx
     mov ecx, 10
-    mov edx, dword 0
+    xor edx, edx
     div ecx
     add eax, dword [lineY]
     cmp eax, [clientHeight]
@@ -613,10 +620,13 @@ rstend:
     mov eax, dword [tickspersec]
     mov ecx, dword [deltaTime]
     add ecx, 1
-    mov edx, dword 0
+    xor edx, edx
     div ecx
 
-    push dword [deltaTime]
+    fild dword [tickspersec]
+    fidiv dword [deltaTime]
+    push dword 0
+    fistp dword [esp]
     push dword titlebuf
     call _uitoa@8
     add eax, titlebuf

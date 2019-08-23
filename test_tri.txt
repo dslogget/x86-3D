@@ -1,0 +1,12 @@
+
+element vertex 3
+property float x
+property float y
+property float z
+element face 1
+property list uchar uint vertex_indices
+end_header
+-0.333333 0.986612 -0.420902
+-0.333333 -1.013388 1.579097
+-0.333333 -1.013388 -0.420902
+0 1 2

@@ -78,7 +78,7 @@ ReadToNextLine_lp1_start:
     je ReadToNextLine_lp1
 
 ReadToNextLine_lp1_body:
-    add ebx, dword 1
+    inc ebx
     jmp ReadToNextLine_lp1
 ReadToNextLine_lp_end:
 
@@ -148,7 +148,7 @@ ReadNumbers_started:
     ja ReadNumbers_lpend
     jmp ReadNumbers_lp_body
 ReadNumbers_lp_body:
-    add ebx, dword 1
+    inc ebx
     jmp ReadNumbers_lp
 ReadNumbers_lpend:
     movzx eax, byte [ebx]

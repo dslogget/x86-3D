@@ -76,7 +76,8 @@ ReadFloat_endif1:
     cmp ecx, 0
     je ReadFloat_lp_end
 ReadFloat_lp_start:
-    loop ReadFloat_lp
+    sub ecx, dword 1
+    jnz ReadFloat_lp
     jmp ReadFloat_lp_end
 ReadFloat_lp:
     mul edi
@@ -141,7 +142,7 @@ ReadNextNumber_endif1:
 ReadNextNumber_skip:
 
 
-    mov esi, dword 0
+    xor esi, esi
 ReadNextNumber_lp:
     push dword 0
     lea eax, [ebp -4*1 - 8]
@@ -319,7 +320,8 @@ LoadTriangles_lp1:
         add ebx, dword 4
 
     pop ecx
-    loop LoadTriangles_lp1
+    sub ecx, dword 1
+    jnz LoadTriangles_lp1
 
 
 
@@ -364,7 +366,8 @@ LoadTriangles_lp2:
         add ebx, dword 4
 
     pop ecx
-    loop LoadTriangles_lp2
+    sub ecx, dword 1
+    jnz LoadTriangles_lp2
 
     push dword esi
     call _CloseHandle@4

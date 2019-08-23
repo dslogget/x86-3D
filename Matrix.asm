@@ -22,6 +22,7 @@
     global _ConstructRotationMatrixY@8
     global _ConstructRotationMatrixZ@8
     global _ConstructPlayerMatrix@8
+    global _NormaliseVec3D@4
    
 
     section .rdata
@@ -35,6 +36,35 @@ DegPerRad   dd 57.295779513082320876798154
     section .bss
 
     section .text
+
+
+_NormaliseVec3D@4:; pVec3d
+    push ebp
+    mov ebp, esp
+    mov eax, dword [ebp + 8 + 4*0]
+
+    fld dword [eax + 4*0]
+    fmul dword [eax + 4*0]
+    fld dword [eax + 4*1]
+    fmul dword [eax + 4*1]
+    fld dword [eax + 4*2]
+    fmul dword [eax + 4*2]
+    faddp
+    faddp
+    fsqrt
+    fld1
+    fdivrp
+    push dword [ebp + 8 + 4*0]
+    push dword 0
+    fstp dword [esp]
+    push dword 3
+    push dword [ebp + 8 + 4*0]
+    call _MultiplyVecFloat@16
+    mov esp, ebp
+    pop ebp
+    ret 4
+
+
 
 _ConstructPlayerMatrix@8: ; pPlayerStruct, pMatRet
     push ebp
@@ -276,11 +306,13 @@ Matrix_Transpose_lp2:
 
     add eax, dword 4
 
-    loop Matrix_Transpose_lp2
+    sub ecx, dword 1
+    jnz Matrix_Transpose_lp2
 
     add edi, 4
     pop ecx
-    loop Matrix_Transpose_lp1
+    sub ecx, dword 1
+    jnz Matrix_Transpose_lp1
 
     mov ecx, dword 4*4
     mov eax, dword [ebp + 8]
@@ -291,7 +323,8 @@ Matrix_Transpose_Cpy:
     mov dword [eax], edx
     add eax, dword 4
     add ebx, dword 4
-    loop Matrix_Transpose_Cpy
+    sub ecx, dword 1
+    jnz Matrix_Transpose_Cpy
 
 
     pop edi
@@ -321,7 +354,8 @@ MultiplyVecFloat_lp:
     add eax, dword 4
     add edx, dword 4
 
-    loop MultiplyVecFloat_lp
+    sub ecx, dword 1
+    jnz MultiplyVecFloat_lp
 
     pop ebx
     mov esp, ebp
@@ -559,13 +593,15 @@ MultiplyMatVec_lp2:
     fmul dword [ebx]                ;multiply by vec val
     add ebx, 4
     faddp                           ;add the result
-    loop MultiplyMatVec_lp2
+    sub ecx, dword 1
+    jnz MultiplyMatVec_lp2
 
     fstp dword [edx]
     add edx, 4
 
     pop ecx
-    loop MultiplyMatVec_lp1
+    sub ecx, dword 1
+    jnz MultiplyMatVec_lp1
 
 
     pop ebx
@@ -604,11 +640,13 @@ MultiplyMatMat_lp2:
 
     add eax, dword 4
 
-    loop MultiplyMatMat_lp2
+    sub ecx, dword 1
+    jnz MultiplyMatMat_lp2
 
     add edi, 4
     pop ecx
-    loop MultiplyMatMat_lp1
+    sub ecx, dword 1
+    jnz MultiplyMatMat_lp1
 
     mov ecx, dword 4
     mov edi, [ebp + 8 + 4*2]
@@ -628,7 +666,8 @@ MultiplyMatMat_lp3:
 
     add edi, dword 16
     pop ecx
-    loop MultiplyMatMat_lp3
+    sub ecx, dword 1
+    jnz MultiplyMatMat_lp3
 
     push dword [ebp + 8 + 4*2]
     call _Matrix_Transpose@4

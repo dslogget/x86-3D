@@ -7,15 +7,37 @@
     global _SetPixelD@20
     global _Bresenham@36
     global _DrawTriangle@20
+    global _FillTriangle@20
     global _ProcessTriangle@20  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
 
     section .data
 
     section .rdata
+LIGHTPRODCONSTX: dd 0.0
+LIGHTPRODCONSTY: dd 0.0
+LIGHTPRODCONSTZ: dd 1.0
+
 
     section .bss
 
     section .text
+
+_FillTriangle@20: ;pScreen, pVec1, pVec2, pVec3, col
+    push ebp
+    mov ebp, esp
+
+
+
+
+    mov esp, ebp
+    pop ebp
+    ret 20
+
+
+
+
+
+
 
     ;ScreenStruct:
     ;pBmpBuf         0x00
@@ -24,7 +46,7 @@
     ;bmpBWidth       0x0C
     ;pDepthBuffer    0x10
     ;BmpBSize        0x14
-_ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
+_ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices, colref
     push ebp
     mov ebp, esp
     push ebx
@@ -152,6 +174,8 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colr
             push dword eax
             call _Cross3DVecVec@12
 
+
+
 ProcessTriangle_if1:
             test dword [esi + 4*2], 0x80000000
             jz ProcessTriangle_endif1
@@ -159,6 +183,12 @@ ProcessTriangle_if1:
             jmp ProcessTriangle_exit
 ProcessTriangle_endif1:
             add esp, dword 4*4*3
+
+    
+            
+
+
+
 
             lea eax, [esp + 4*4*0]
             push eax
@@ -208,7 +238,7 @@ ProcessTriangle_CheckInBounds:
 
     mov ecx, esp
 
-    push dword 0x00FFFFFF
+    push dword [ebp + 8 + 4*4]
     lea eax, [ecx + 4*4*2]
     push dword eax
     lea eax, [ecx + 4*4*1]
@@ -295,6 +325,7 @@ _SetPixelD@20:      ;pScreenStruct, pixX, pixY, fDepth, colref
 
 
     ;Get depth buffer row offset index
+    xor edx, edx
     mov eax, dword  [ebx + 4*1]
     mov ecx, dword [ebp + 8 + 4*2]
     mul ecx 
@@ -311,26 +342,28 @@ _SetPixelD@20:      ;pScreenStruct, pixX, pixY, fDepth, colref
     add edx, eax
 
     ;Load vals to compare
-    fld dword [ebp + 8 + 4*3] ;point depth = ST(0)
+    ;fld dword [ebp + 8 + 4*3] ;point depth = ST(0)
+    movss xmm0, dword [ebp + 8 + 4*3]
     cmp dword [edx], dword 0
     je SetPixelD_else1
-    fcom dword [edx] ;Stored depth
-    fstsw ax 
-    and ax, 0b0100011100000000 ;extract Cs
-    xor ax, 0b0000000100000000 ;Check if new point is 
+    comiss xmm0, [edx]
+    ;fcomi
+
 SetPixelD_if1:
-    jz SetPixelD_else1;if zero then new point is smaller
-    fstp st0
+    jb SetPixelD_else1                     
+    ;fstp st0
     jmp PixelD_exit
 SetPixelD_else1:
-    fstp dword [edx]
+    ;fstp dword [edx]
+    movss dword [edx], xmm0
+    push dword [ebx]
 
-    mov edx, dword [ebx]
-    push edx
+    xor edx, edx
     mov eax, dword [ebx + 0x0C]
     mov ecx, dword [ebp + 8 + 4*2]
     mul ecx
     add dword [esp], eax
+    xor edx, edx
     mov eax, dword [ebx + 0x08]
     mov ecx, dword [ebp + 8 + 4*1]
     mul ecx
@@ -455,7 +488,7 @@ _Bresenham@36: ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDe
 
                 ;error = esi
 
-                mov esi, dword 0
+                xor esi, esi
             BresenhamX_lp:
                 mov eax, dword [ebp - 8]
                 cmp eax, dword [ebp + 8 + 4*5]
@@ -588,7 +621,7 @@ Bresenham_UseYAxis:
 
                 ;error = esi
 
-                mov esi, dword 0
+                xor esi, esi
             BresenhamY_lp:
                 mov eax, dword [ebp - 8]
                 cmp eax, dword [ebp + 8 + 4*6]
