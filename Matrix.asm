@@ -578,31 +578,26 @@ _MultiplyMatVec@12: ; pMat, pVec, pVecToRet
 
 
     mov edx, dword [ebp + 8 + 4*2] ; load return
-
     mov eax, dword [ebp + 8 + 4*0]  ; load mat
-    mov ecx, dword 4
-MultiplyMatVec_lp1:
-    push ecx
-
-    mov ecx, dword 4
-    fldz
     mov ebx, dword [ebp + 8 + 4*1] ; load vec
-MultiplyMatVec_lp2:
-    fld dword [eax]                 ;load mat val
-    add eax, 4                      
-    fmul dword [ebx]                ;multiply by vec val
-    add ebx, 4
-    faddp                           ;add the result
-    sub ecx, dword 1
-    jnz MultiplyMatVec_lp2
+    mov ecx, dword -4*4
 
-    fstp dword [edx]
-    add edx, 4
+    movups xmm0, [ebx]
+    movups xmm1, [ebx]
+    sub esp, dword 4*4
+MultiplyMatVec_lp1:
+    movups xmm0, [eax + 4*ecx + 4*4*4]
+    mulps xmm0, xmm1
+    movups [esp], xmm0
+    addss xmm0, [esp + 4*1]
+    addss xmm0, [esp + 4*2]
+    addss xmm0, [esp + 4*3]
+    movss [edx + ecx + 4*4], xmm0
 
-    pop ecx
-    sub ecx, dword 1
+    add ecx, dword 1*4
     jnz MultiplyMatVec_lp1
 
+    add esp, dword 4*4
 
     pop ebx
     mov esp, ebp
