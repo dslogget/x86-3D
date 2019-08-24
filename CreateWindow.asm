@@ -42,7 +42,7 @@ PlRotSpeed: dd 0.1
 
 
 angle: dd 0
-angularSpeed: dd 0.05
+angularSpeed: dd 0.005
 
 
 hWind   dd 0

@@ -25,10 +25,133 @@ LIGHTPRODCONSTZ: dd 1.0
 _FillTriangle@20: ;pScreen, pVec1, pVec2, pVec3, col
     push ebp
     mov ebp, esp
+    push ebx
+    push esi
+    push edi
+        ;Split triangle into two flat top/bottom if not already
+
+    ;sort vertices y value
+    ;   sort v0 v1
+    ;   sort v1 v2
+    ;   sort v0 v1
+
+    mov eax, dword [ebp + 8 + 4*1]
+    mov ecx, dword [ebp + 8 + 4*2]
+    mov esi, dword [ebp + 8 + 4*3]
+
+    mov ebx, [eax + 4*1]
+    mov edx, [ecx + 4*1]
+    mov edi, [esi + 4*1]
+
+;sorting
+    cmp ebx, edx
+    jg FillTriangle_SkipSort1
+    xchg ebx, edx
+    xchg eax, ecx
+FillTriangle_SkipSort1:
+
+    cmp edx, edi
+    jg FillTriangle_SkipSort2
+    xchg edx, edi
+    xchg ecx, esi
+FillTriangle_SkipSort2:
+
+    cmp ebx, edx
+    jg FillTriangle_SkipSort3
+    xchg ebx, edx
+    xchg eax, ecx
+FillTriangle_SkipSort3:
+;sorting
+
+    cmp ebx, edx
+    je FillTriangle_FlatTop
+
+    cmp edx, edi
+    je FillTriangle_FlatBottom
+
+
+    ;Calculate the other point for flat
+    ;We know y value will be edx
+    ;So what x-value will give a y of edx?
+    ;([ecx + 4] - [eax + 4])/([esi + 4] - [eax + 4]) * ([esi] - [eax]) + [eax] = x
+    sub esp, dword 4*3; For tmp point
+
+    cvtsi2ss xmm0, edx
+    cvtsi2ss xmm1, edi
+    cvtsi2ss xmm2, [esi]
+
+    cvtsi2ss xmm3, [eax]
+    cvtsi2ss xmm4, ebx
+
+    subss xmm2, xmm3
+    subss xmm1, xmm4
+    subss xmm0, xmm4
+    divss xmm0, xmm1
+
+    movss xmm4, xmm0
+    ;Quotient
+
+    mulss xmm0, xmm2
+    addps xmm0, xmm3
+
+    cvtss2si ebx, xmm0
+    mov dword [esp], ebx
+    mov dword [esp + 4], edx
+
+    movss xmm0, [eax + 4*2]
+    movss xmm1, [esi + 4*2]
+    subss xmm0, xmm1
+    mulss xmm0, xmm4
+    addss xmm0, xmm1
+
+    movss [esp + 4*2], xmm0
+    mov ebx, esp
+
+    push dword 0x0000FFFF
+    push dword esi
+    push dword ecx
+    push dword ebx;[ebp + 8 + 4*1]
+    push dword [ebp + 8 + 4*0]
+    
+    push dword 0x00FFFF00
+    push dword eax
+    push dword ecx
+    push dword ebx;[ebp + 8 + 4*1]
+    push dword [ebp + 8 + 4*0]
+    call _DrawTriangle@20
+    call _DrawTriangle@20
+
+    add esp, dword 4*3
+
+    jmp FillTriangle_Exit
+FillTriangle_FlatTop:
 
 
 
 
+    push dword 0x00FF0000
+    push dword [ebp + 8 + 4*3]
+    push dword [ebp + 8 + 4*2]
+    push dword [ebp + 8 + 4*1]
+    push dword [ebp + 8 + 4*0]
+    call _DrawTriangle@20
+
+
+    jmp FillTriangle_Exit
+FillTriangle_FlatBottom:
+
+    push dword 0x00000FF
+    push dword [ebp + 8 + 4*3]
+    push dword [ebp + 8 + 4*2]
+    push dword [ebp + 8 + 4*1]
+    push dword [ebp + 8 + 4*0]
+    call _DrawTriangle@20
+
+    jmp FillTriangle_Exit
+FillTriangle_Exit:
+    pop edi
+    pop esi
+    pop ebx
     mov esp, ebp
     pop ebp
     ret 20
@@ -246,7 +369,7 @@ ProcessTriangle_CheckInBounds:
     lea eax, [ecx + 4*4*0]
     push dword eax
     push dword [ebp + 8 + 4*0]
-    call _DrawTriangle@20
+    call _FillTriangle@20
 
 
 ProcessTriangle_exit:
