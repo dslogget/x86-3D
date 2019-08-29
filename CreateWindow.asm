@@ -34,6 +34,9 @@ DegPerRad   dd 57.295779513082320876798154
 
 
     section .data
+tricol: dd 0x00880000
+
+
 player:
 PlPos: dd 0.0, 0.0, 0.0
 PlRot: dd 0.0, 0.0, 0.0
@@ -41,7 +44,7 @@ PlMoveSpeed: dd 0.005
 PlRotSpeed: dd 0.1
 
 
-angle: dd 0
+angle: dd 0.0
 angularSpeed: dd 0.005
 
 
@@ -387,7 +390,7 @@ draw_Tris:
         mov ecx, dword 12
         mul ecx
 
-        push 0x00FFFFFF
+        push dword [tricol]
         mov ecx, dword [pMeshes]
         add ecx, eax
         push dword ecx
@@ -395,6 +398,8 @@ draw_Tris:
         push TransformMatrix
         push ScreenStruct
         call _ProcessTriangle@20  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
+
+        ;xor dword [tricol], 0x0000FFFF
     pop ecx
     sub ecx, dword 1
     jnz draw_Tris

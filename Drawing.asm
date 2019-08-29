@@ -9,18 +9,161 @@
     global _DrawTriangle@20
     global _FillTriangle@20
     global _ProcessTriangle@20  ;pScreenStruct, pTransformMatrix, pVertices, pIndices colref
+    global _FillFlatBottomTriangle@20
 
     section .data
 
     section .rdata
-LIGHTPRODCONSTX: dd 0.0
-LIGHTPRODCONSTY: dd 0.0
-LIGHTPRODCONSTZ: dd 1.0
+LIGHTPRODCONSTX: dd 0.0;0.0
+LIGHTPRODCONSTY: dd 2.0
+LIGHTPRODCONSTZ: dd 0.4;1.0
+
+thresholdcos:    dd 0.05
+
+testDepth dd 0.05
 
 
     section .bss
 
     section .text
+
+_FillFlatBottomTriangle@20: ;pScreen, pVec1, pVec2, pVec3, col
+    push ebp
+    mov ebp, esp
+    sub esp, dword 4*7
+    push ebx
+    push esi
+    push edi
+    mov eax, dword [ebp + 8 + 4*1]
+    mov ebx, dword [ebp + 8 + 4*2]
+    mov ecx, dword [ebp + 8 + 4*3]
+
+    mov esi, dword [ebx + 4]
+
+    cmp [eax + 4], esi
+    jbe FillFlatTop
+    mov edi, dword [eax + 4*1]
+    mov dword [ebp - 4 - 4*4], edi
+    jmp FillFlatEnd
+FillFlatTop:
+    mov dword [ebp - 4 - 4*4], esi 
+    mov esi, [eax + 4*1]
+FillFlatEnd:
+
+
+    ;"left" side first
+    cvtsi2ss xmm0, [eax + 4]
+    cvtsi2ss xmm1, [eax]
+    cvtsi2ss xmm2, [ebx + 4]
+    cvtsi2ss xmm3, [ebx]
+    ;then "right"
+    cvtsi2ss xmm6, [eax + 4]
+    cvtsi2ss xmm7, [eax]
+    cvtsi2ss xmm4, [ecx + 4]
+    cvtsi2ss xmm5, [ecx]
+
+    subss xmm0, xmm2
+    subss xmm1, xmm3
+    divss xmm1, xmm0
+
+    subss xmm6, xmm4
+    subss xmm7, xmm5
+    divss xmm7, xmm6
+
+    ;rise/run * x + c = y
+    ;rise*x + c*run - y*run = 0
+    ;x = (y - y0)*run/rise 
+
+
+    ;xmm0 (a.y - b.y)
+    ;xmm1 (a.x - b.x)/(a.y - b.y)
+    ;xmm2 b.y
+    ;xmm3 b.x
+    ;
+    ;xmm4 c.y
+    ;xmm5 c.x
+    ;xmm6 (a.y - c.y)
+    ;xmm7 (a.x - c.x)/(a.y - c.y)
+
+    movss dword [ebp - 4 - 4*0], xmm1
+    movss dword [ebp - 4 - 4*1], xmm7
+
+    ;mov ebx, dword [ebx + 4]
+    movss [ebp - 4 - 4*2], xmm2
+
+    movss [ebp - 4 - 4*3], xmm4
+
+    ;Calc depthdiff
+    movss xmm2, [eax + 4*2];L
+    movss xmm3, [ebx + 4*2]
+
+    movss xmm4, xmm2
+    movss xmm5, [ecx + 4*2]
+
+    subss xmm2, xmm3
+    subss xmm4, xmm5
+
+    divss xmm2, xmm0
+    divss xmm4, xmm6
+    ;slopes for depth
+    movss [ebp - 4 - 4*5], xmm2
+    movss [ebp - 4 - 4*6], xmm4
+
+
+    mov edi, [ebp + 8 + 4*3]
+
+FillFlatBottomTriangle_lp1:
+    ;x left 
+    cvtsi2ss xmm0, esi
+    cvtsi2ss xmm1, esi
+    subss xmm0, [ebp - 4 - 4*2]
+    subss xmm1, [ebp - 4 - 4*3]
+
+    movss xmm2, xmm0
+    movss xmm3, xmm1
+
+
+    mulss xmm0, [ebp - 4 - 4*0]
+    mulss xmm1, [ebp - 4 - 4*1]
+
+    mulss xmm2, [ebp - 4 - 4*5]
+    mulss xmm3, [ebp - 4 - 4*6]
+
+    addss xmm2, [ebx + 4*2]
+    addss xmm3, [edi + 4*2]
+
+    cvtss2si eax, xmm0
+    cvtss2si ecx, xmm1
+    add eax, [ebx]
+    add ecx, [edi]
+
+
+
+    push dword [ebp + 8 + 4*4]
+    push dword 0
+    movss [esp], xmm3
+    push dword esi
+    push dword ecx
+    push dword [ebp + 8 + 4*4]
+    push dword 0 
+    movss [esp], xmm2
+    push dword esi
+    push dword eax
+    push dword [ebp + 8 + 4*0]
+    call _Bresenham@36 ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDepth2, colref2
+
+    add esi, dword 1
+    cmp esi, dword [ebp - 4 - 4*4]
+    jne FillFlatBottomTriangle_lp1
+
+
+    pop edi
+    pop esi
+    pop ebx
+    mov esp, ebp
+    pop ebp
+    ret 20
+
 
 _FillTriangle@20: ;pScreen, pVec1, pVec2, pVec3, col
     push ebp
@@ -62,7 +205,6 @@ FillTriangle_SkipSort2:
     xchg eax, ecx
 FillTriangle_SkipSort3:
 ;sorting
-
     cmp ebx, edx
     je FillTriangle_FlatTop
 
@@ -83,10 +225,10 @@ FillTriangle_SkipSort3:
     cvtsi2ss xmm3, [eax]
     cvtsi2ss xmm4, ebx
 
-    subss xmm2, xmm3
-    subss xmm1, xmm4
-    subss xmm0, xmm4
-    divss xmm0, xmm1
+    subss xmm2, xmm3;c.x - a.x
+    subss xmm1, xmm4;c.y - a.y
+    subss xmm0, xmm4;b.y - a.y
+    divss xmm0, xmm1;(b.y - a.y)/(c.y - a.y)
 
     movss xmm4, xmm0
     ;Quotient
@@ -107,45 +249,48 @@ FillTriangle_SkipSort3:
     movss [esp + 4*2], xmm0
     mov ebx, esp
 
-    push dword 0x0000FFFF
-    push dword esi
+    push dword [ebp + 8 + 4*4]
     push dword ecx
     push dword ebx;[ebp + 8 + 4*1]
-    push dword [ebp + 8 + 4*0]
-    
-    push dword 0x00FFFF00
     push dword eax
+    push dword [ebp + 8 + 4*0]
+    push dword [ebp + 8 + 4*4]
     push dword ecx
     push dword ebx;[ebp + 8 + 4*1]
+    push dword esi
     push dword [ebp + 8 + 4*0]
-    call _DrawTriangle@20
-    call _DrawTriangle@20
+    call _FillFlatBottomTriangle@20
+    call _FillFlatBottomTriangle@20
 
     add esp, dword 4*3
 
     jmp FillTriangle_Exit
 FillTriangle_FlatTop:
+    cmp edx, edi
+    je FillTriangle_Exit
 
 
-
-
-    push dword 0x00FF0000
-    push dword [ebp + 8 + 4*3]
-    push dword [ebp + 8 + 4*2]
-    push dword [ebp + 8 + 4*1]
+    push dword [ebp + 8 + 4*4]
+    push dword eax
+    push dword ecx
+    push dword esi
     push dword [ebp + 8 + 4*0]
-    call _DrawTriangle@20
+    call _FillFlatBottomTriangle@20
+
 
 
     jmp FillTriangle_Exit
 FillTriangle_FlatBottom:
+    cmp ebx, edx
+    je FillTriangle_Exit
 
-    push dword 0x00000FF
-    push dword [ebp + 8 + 4*3]
-    push dword [ebp + 8 + 4*2]
-    push dword [ebp + 8 + 4*1]
+    push dword [ebp + 8 + 4*4]
+    push dword esi
+    push dword ecx
+    push dword eax
     push dword [ebp + 8 + 4*0]
-    call _DrawTriangle@20
+    call _FillFlatBottomTriangle@20
+
 
     jmp FillTriangle_Exit
 FillTriangle_Exit:
@@ -297,6 +442,72 @@ _ProcessTriangle@20:  ;pScreenStruct, pTransformMatrix, pVertices, pIndices, col
             push dword eax
             call _Cross3DVecVec@12
 
+            push esi
+            call _NormaliseVec3D@4
+
+
+            push dword [LIGHTPRODCONSTZ]
+            push dword [LIGHTPRODCONSTY]
+            push dword [LIGHTPRODCONSTX]
+
+            push esp
+            push esi
+            call _Dot3DVecVec@8
+            fld dword [thresholdcos]
+            fcomip st0, st1
+            jb NotMax
+            ;fmul st0, st0
+            ;fmul st0, st0
+            ;fmul st0, st0
+            fstp st0
+            fld dword [thresholdcos]
+
+NotMax:
+
+            ;Colour each component
+            push dword 0
+
+            movzx eax, byte [ebp + 8 + 4*4] 
+            mov [esp], dword eax 
+            fild dword [esp]
+            fmul st0, st1
+            fistp dword [esp]
+            mov ecx, dword [esp]
+            cmp ecx, dword 0x000000FF
+            jb NotMaxR
+            mov ecx, dword 0x000000FF
+            NotMaxR:
+            mov byte [ebp + 8 + 4*4], cl
+
+            movzx eax, byte [ebp + 8 + 4*4 + 1] 
+            mov [esp], dword eax 
+            fild dword [esp]
+            fmul st0, st1
+            fistp dword [esp]
+            mov ecx, dword [esp]
+            cmp ecx, dword 0x000000FF
+            jb NotMaxG
+            mov ecx, dword 0x000000FF
+            NotMaxG:
+            mov byte [ebp + 8 + 4*4 + 1], cl
+
+            movzx eax, byte [ebp + 8 + 4*4 + 2] 
+            mov [esp], dword eax 
+            fild dword [esp]
+            fmulp
+            fistp dword [esp]
+            mov ecx, dword [esp]
+            cmp ecx, dword 0x000000FF
+            jb NotMaxB
+            mov ecx, dword 0x000000FF
+            NotMaxB:
+            mov byte [ebp + 8 + 4*4 + 2], cl
+
+
+
+            add esp, dword 4*1
+
+            add esp, dword 4*3
 
 
 ProcessTriangle_if1:
@@ -308,11 +519,6 @@ ProcessTriangle_endif1:
             add esp, dword 4*4*3
 
     
-            
-
-
-
-
             lea eax, [esp + 4*4*0]
             push eax
             push eax
@@ -361,6 +567,15 @@ ProcessTriangle_CheckInBounds:
 
     mov ecx, esp
 
+    ;push dword 0x0000FF00
+    ;lea eax, [ecx + 4*4*2]
+    ;push dword eax
+    ;lea eax, [ecx + 4*4*1]
+    ;push dword eax
+    ;lea eax, [ecx + 4*4*0]
+    ;push dword eax
+    ;push dword [ebp + 8 + 4*0]
+    
     push dword [ebp + 8 + 4*4]
     lea eax, [ecx + 4*4*2]
     push dword eax
@@ -370,6 +585,8 @@ ProcessTriangle_CheckInBounds:
     push dword eax
     push dword [ebp + 8 + 4*0]
     call _FillTriangle@20
+
+    ;call _DrawTriangle@20
 
 
 ProcessTriangle_exit:
@@ -443,6 +660,7 @@ _SetPixelD@20:      ;pScreenStruct, pixX, pixY, fDepth, colref
     push ebp
     mov ebp, esp
     push ebx
+    push esi
 
     mov ebx, [ebp + 8]
 
@@ -461,8 +679,10 @@ _SetPixelD@20:      ;pScreenStruct, pixX, pixY, fDepth, colref
     ;get final index
     add edx, eax
     mov eax, dword [ebp + 8 + 4*1]
+    ;lea edx, [edx + 4*eax]
     shl eax, 2
     add edx, eax
+    prefetcht0 [edx]
 
     ;Load vals to compare
     ;fld dword [ebp + 8 + 4*3] ;point depth = ST(0)
@@ -479,19 +699,21 @@ SetPixelD_if1:
 SetPixelD_else1:
     ;fstp dword [edx]
     movss dword [edx], xmm0
-    push dword [ebx]
+    ;push dword [ebx]
+    mov esi, dword [ebx]
 
-    xor edx, edx
     mov eax, dword [ebx + 0x0C]
     mov ecx, dword [ebp + 8 + 4*2]
     mul ecx
-    add dword [esp], eax
-    xor edx, edx
+    ;add dword [esp], eax
+    add esi, eax
     mov eax, dword [ebx + 0x08]
     mov ecx, dword [ebp + 8 + 4*1]
     mul ecx
-    add dword [esp], eax
-    pop edx
+    ;add dword [esp], eax
+    add esi, eax
+    mov edx, esi
+    ;pop edx
     ;get index ^^^^
 
     ;get to work setting colours
@@ -502,6 +724,7 @@ SetPixelD_else1:
 
 
 PixelD_exit:
+    pop esi
     pop ebx
     mov esp, ebp
     pop ebp
@@ -592,17 +815,22 @@ _Bresenham@36: ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDe
 
 
 
-                ;load fDepth2
-                fld dword [ebp + 8 + 4*7]
-                ;sub fDepth1
-                fsub dword [ebp + 8 + 4*3]
-                fstp dword [ebp - 20]
+                ;calc diff/run
 
-
-
+                movss xmm4, [ebp + 8 + 4*7]
+                subss xmm4, [ebp + 8 + 4*3]
+                
 
                 mov ebx, [ebp + 8 + 4*5]
                 sub ebx, [ebp + 8 + 4*1]
+                cvtsi2ss xmm3, ebx
+                cmp ebx, dword 0
+                je BresenhamX_DIV0
+                divss xmm4, xmm3
+                BresenhamX_DIV0:
+
+                movss [ebp - 20], xmm4
+
                 shl edi, 1
 
 
@@ -616,33 +844,28 @@ _Bresenham@36: ;pScreenStruct, pixX1, pixY1, fDepth1, colref1, pixX2, pixY2, fDe
                 mov eax, dword [ebp - 8]
                 cmp eax, dword [ebp + 8 + 4*5]
                 ja Bresenham_exit
+                
 
                 ;interpolate pixel depth
 
                 ;load x
-                fild dword [ebp - 8]
 
-                ;get dist along x
-                lea eax, [ebp + 8 + 4*1]
-                fisub dword [eax]
+                cvtsi2ss xmm0, [ebp - 8]
+                cvtsi2ss xmm1, [ebp + 8 + 4*1]
+                movss xmm2, [ebp + 8 + 4*3]
+                movss xmm4, [ebp - 20]
 
-                ;div by run
-                mov dword [ebp - 16], ebx
-                fidiv dword [eax]
-                push dword 0
-                fist dword [esp]
+                ;get dist along x  
+                subss xmm0, xmm1
 
-                lea eax, [ebp - 20]
-                ;multiply fraction by diff
-                fmul dword [eax]
-                lea eax, [ebp + 8 + 4*3]
-                fadd dword [eax]
+                ;mult by fraction diff/run
+                mulss xmm0, xmm4
+                addss xmm0, xmm2
 
-                add esp, 4
 
                 push dword [ebp + 8 + 4*8]
-                push dword 0
-                fstp dword [esp]
+                sub esp, dword 4
+                movss [esp], xmm0
                 push dword [ebp - 12]
                 push dword [ebp - 8]
                 push dword [ebp + 8]
@@ -724,23 +947,25 @@ Bresenham_UseYAxis:
                 pop edi
 
 
-
-                ;load fDepth2
-                fld dword [ebp + 8 + 4*7]
-                ;sub fDepth1
-                fsub dword [ebp + 8 + 4*3]
-                fstp dword [ebp - 20]
-
-
-
+                movss xmm4, [ebp + 8 + 4*7]
+                subss xmm4, [ebp + 8 + 4*3]
 
                 mov ebx, [ebp + 8 + 4*6]
                 sub ebx, [ebp + 8 + 4*2]
+                cvtsi2ss xmm3, ebx
+                cmp ebx, dword 0
+                je BresenhamY_DIV0
+                divss xmm4, xmm3
+                BresenhamY_DIV0:
+                movss [ebp - 20], xmm4
+                
+
+
                 shl edi, 1
 
 
 
-                ;threshold = run = ebx
+                ;threshold = rise = ebx
 
                 ;error = esi
 
@@ -750,31 +975,28 @@ Bresenham_UseYAxis:
                 cmp eax, dword [ebp + 8 + 4*6]
                 ja Bresenham_exit
 
+
+
                 ;interpolate pixel depth
 
                 ;load y
-                fild dword [ebp - 8]
 
-                ;get dist along y
-                lea eax, [ebp + 8 + 4*2]
-                fisub dword [eax]
+                cvtsi2ss xmm0, [ebp - 8]
+                cvtsi2ss xmm1, [ebp + 8 + 4*2]
+                movss xmm2, [ebp + 8 + 4*3]
+                movss xmm4, [ebp - 20]
 
-                ;div by rise
-                mov dword [ebp - 16], ebx
-                fidiv dword [eax]
-                push dword 0
-                fist dword [esp]
+                ;get dist along y  
+                subss xmm0, xmm1
 
-                lea eax, [ebp - 20]
-                ;multiply fraction by diff
-                fmul dword [eax]
-                fadd dword [ebp + 8 + 4*3]
+                ;mult by fraction diff/rise
+                mulss xmm0, xmm4
+                addss xmm0, xmm2
 
-                add esp, 4
 
                 push dword [ebp + 8 + 4*8]
-                push dword 0
-                fstp dword [esp]
+                sub esp, dword 4
+                movss [esp], xmm0
                 push dword [ebp - 8]
                 push dword [ebp - 12]
                 push dword [ebp + 8]
