@@ -34,6 +34,9 @@ DegPerRad   dd 57.295779513082320876798154
 
 
     section .data
+performanceFreq dq 0x0
+
+
 tricol: dd 0x00880000
 
 
@@ -549,6 +552,11 @@ _init:
     call _ShowWindow@8
 
 
+    push performanceFreq
+    call _QueryPerformanceFrequency@4
+
+
+
     sub esp, dword 24
     lea ebx, [esp]
 lp:
@@ -596,23 +604,11 @@ noMsg:
     mov dword [lastRedraw], ecx
     xor edx, edx
     mov ecx, dword 1000
+    mul ecx
+    mov ecx, dword [performanceFreq]
     div ecx
     mov dword [deltaTime], eax
 
-    ;speed = 1/10 per tick
-
-    mov eax, dword 1
-    mov ecx, dword [deltaTime]
-    mul ecx
-    mov ecx, 10
-    xor edx, edx
-    div ecx
-    add eax, dword [lineY]
-    cmp eax, [clientHeight]
-    jb rstend
-    mov eax, dword 10
-rstend:
-    mov dword [lineY], eax
 
     ;update angle
     fld dword [angle]
@@ -622,11 +618,11 @@ rstend:
     faddp
     fstp dword [angle]
 
-    mov eax, dword [tickspersec]
-    mov ecx, dword [deltaTime]
-    add ecx, 1
-    xor edx, edx
-    div ecx
+    ;mov eax, dword [tickspersec]
+    ;mov ecx, dword [deltaTime]
+    ;add ecx, 1
+    ;xor edx, edx
+    ;div ecx
 
     fild dword [tickspersec]
     fidiv dword [deltaTime]
@@ -651,7 +647,7 @@ rstend:
     push dword 'W'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_W
 
     fld dword [PlPos + 4*2]
@@ -674,7 +670,7 @@ No_W:
     push dword 'S'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_S
 
     fld dword [PlPos + 4*2]
@@ -697,7 +693,7 @@ No_S:
     push dword 'A'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_A
 
     fld dword [PlPos + 4*2]
@@ -720,7 +716,7 @@ No_A:
     push dword 'D'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_D
 
     fld dword [PlPos + 4*2]
@@ -743,7 +739,7 @@ No_D:
     push dword VK_SPACE
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_Space
 
     fld dword [PlPos + 4*1]
@@ -759,7 +755,7 @@ No_Space:
     push dword 'C'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_C
 
     fld dword [PlPos + 4*1]
@@ -778,7 +774,7 @@ No_C:
     push dword 'Q'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_Q
 
     fld dword [PlRot + 4*1]
@@ -792,7 +788,7 @@ No_Q:
     push dword 'E'
     call _GetAsyncKeyState@4
 
-    test eax, dword 0x80000000
+    test eax, dword 0x8000;0000
     jz No_E
 
     fld dword [PlRot + 4*1]

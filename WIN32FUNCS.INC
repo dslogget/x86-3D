@@ -46,3 +46,4 @@
 
     extern _GetAsyncKeyState@4
     extern _QueryPerformanceCounter@4
+    extern _QueryPerformanceFrequency@4
